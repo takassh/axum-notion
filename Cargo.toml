@@ -1,0 +1,15 @@
+workspace = { members = ["libs/api", "libs/models", "libs/sync-notion"] }
+[package]
+name = "axum-notion"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+shuttle-axum = "0.39.0"
+shuttle-runtime = "0.39.0"
+shuttle-shared-db = { version = "0.39.0", features = ["sqlx", "postgres"] }
+tokio = "1.28.2"
+tracing = "0.1.40"
+api = { path = "./libs/api" }
+shuttle-secrets = "0.39.0"
+sync-notion = { path = "./libs/sync-notion" }
