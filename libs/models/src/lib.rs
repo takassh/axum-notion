@@ -1,6 +1,6 @@
 use migration::{Migrator, MigratorTrait};
 use repositories::{BlockRepository, PageRepository};
-use sea_orm::{Database, DbErr};
+use sea_orm::{ConnectOptions, Database, DbErr};
 
 pub mod entities;
 pub mod repositories;
@@ -19,7 +19,12 @@ pub enum ModelsError {
 }
 
 pub async fn init_repository(db_url: &str) -> Result<Repository, ModelsError> {
-    let db = Database::connect(db_url)
+    let mut opt = ConnectOptions::new(db_url);
+    opt.max_connections(5)
+        .min_connections(1)
+        .sqlx_logging(true);
+
+    let db = Database::connect(opt)
         .await
         .map_err(|e| ModelsError::FailedToConnectDB { source: e })?;
 

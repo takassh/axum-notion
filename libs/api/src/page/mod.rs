@@ -1,26 +1,25 @@
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     Json,
 };
-use models::Repository;
+use models::{ModelsError, Repository};
 mod request;
 mod response;
 
 use self::response::{GetPageRespose, GetPagesRespose, Page};
 
-type ResponseError = (StatusCode, String);
+fn into_response(e: ModelsError, message: &str) -> Response {
+    (StatusCode::INTERNAL_SERVER_ERROR, format!("{message}: {e}")).into_response()
+}
 
-pub async fn get_pages(
-    State(repo): State<Repository>,
-) -> Result<Json<GetPagesRespose>, ResponseError> {
-    let pages = repo.page.find_all().await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("failed to get pages: {e}"),
-        )
-    })?;
+pub async fn get_pages(State(repo): State<Repository>) -> Result<Json<GetPagesRespose>, Response> {
+    let pages = repo
+        .page
+        .find_all()
+        .await
+        .map_err(|e| into_response(e, "find all"))?;
 
     let response = Json(GetPagesRespose {
         pages: pages
@@ -37,13 +36,12 @@ pub async fn get_pages(
 pub async fn get_page(
     State(repo): State<Repository>,
     Path(id): Path<String>,
-) -> Result<Json<GetPageRespose>, ResponseError> {
-    let page = repo.page.find_by_id(id).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Something went wrong: {e}"),
-        )
-    })?;
+) -> Result<Json<GetPageRespose>, Response> {
+    let page = repo
+        .page
+        .find_by_id(id)
+        .await
+        .map_err(|e| into_response(e, "find by id"))?;
 
     let Some(page) = page else {
         return Ok(Json(GetPageRespose { page: None }));
@@ -59,12 +57,9 @@ pub async fn get_page(
 pub async fn delete_page(
     State(repo): State<Repository>,
     Json(id): Json<String>,
-) -> Result<impl IntoResponse, ResponseError> {
+) -> Result<impl IntoResponse, Response> {
     match repo.page.delete_by_id(id).await {
         Ok(v) => Ok(v),
-        Err(e) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Something went wrong: {e}"),
-        )),
+        Err(e) => Err(into_response(e, "delete by id")),
     }
 }
