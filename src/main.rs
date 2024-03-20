@@ -1,7 +1,7 @@
 use shuttle_runtime::Error;
 use shuttle_secrets::SecretStore;
 use tracing::info;
-use tracing_subscriber;
+
 
 #[shuttle_runtime::main]
 async fn main(
