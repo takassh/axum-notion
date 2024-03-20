@@ -11,6 +11,6 @@ tokio = "1.36.0"
 tracing = "0.1.40"
 entities = { path = "../entities" }
 repositories = { path = "../repositories" }
-serde_json = "1.0.113"
+serde_json = "1.0.114"
 async-recursion = "1.0.5"
 notion-client = "0.1.8"
