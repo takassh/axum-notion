@@ -1,10 +1,9 @@
-use shuttle_runtime::Error;
-use shuttle_secrets::SecretStore;
+use shuttle_runtime::{Error, SecretStore, Secrets};
 use tracing::info;
 
 #[shuttle_runtime::main]
 async fn main(
-    #[shuttle_secrets::Secrets] secret_store: SecretStore,
+    #[Secrets] secret_store: SecretStore,
     #[shuttle_shared_db::Postgres(local_uri = "{secrets.LOCAL_DATABASE_URL}")] conn_string: String,
 ) -> shuttle_axum::ShuttleAxum {
     if let Some(is_on_shuttle) = secret_store.get("SHUTTLE") {
