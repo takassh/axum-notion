@@ -501,6 +501,7 @@ dependencies = [
  "sync-notion",
  "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -744,16 +745,6 @@ name = "colorchoice"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
-
-[[package]]
-name = "colored"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbf2150cce219b664a8a70df7a1f933836724b503f8a413af9365b4dcc4d90b8"
-dependencies = [
- "lazy_static",
- "windows-sys 0.48.0",
-]
 
 [[package]]
 name = "comfy-table"
@@ -1011,6 +1002,7 @@ name = "entities"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "log",
  "sea-orm",
  "sea-orm-migration",
  "thiserror",
@@ -1569,7 +1561,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.10",
+ "socket2 0.5.5",
  "tokio",
  "tower-service",
  "tracing",
@@ -1923,9 +1915,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.20"
+version = "0.4.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
+checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
 dependencies = [
  "value-bag",
 ]
@@ -3504,7 +3496,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "colored",
  "prost-types",
  "serde",
  "serde_json",
@@ -3517,7 +3508,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tonic 0.10.2",
- "tracing-subscriber",
 ]
 
 [[package]]

@@ -16,6 +16,7 @@ sea-orm = { version = "^0.12.0", features = [
     "runtime-tokio-native-tls",
     "macros",
 ] }
+log = "0.4.21"
 
 [dependencies.sea-orm-migration]
 version = "0.12.0"

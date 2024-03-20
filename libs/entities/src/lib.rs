@@ -32,7 +32,10 @@ pub enum EntitiesError {
 
 pub async fn init_db(db_url: &str) -> Result<DatabaseConnection, EntitiesError> {
     let mut opt = ConnectOptions::new(db_url);
-    opt.max_connections(5).min_connections(1).sqlx_logging(true);
+    opt.max_connections(5)
+        .min_connections(1)
+        .sqlx_logging(true)
+        .sqlx_logging_level(log::LevelFilter::Debug);
 
     let db = Database::connect(opt)
         .await
