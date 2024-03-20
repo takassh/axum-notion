@@ -1,5 +1,5 @@
 [package]
-name = "models"
+name = "repositories"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,5 +12,5 @@ sea-orm = { version = "^0.12.0", features = [
     "runtime-tokio-native-tls",
     "macros",
 ] }
-migration = { path = "./migration" }
+entities = { path = "../entities" }
 chrono = "0.4.34"

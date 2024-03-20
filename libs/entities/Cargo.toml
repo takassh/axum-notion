@@ -1,15 +1,21 @@
 [package]
-name = "migration"
+name = "entities"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [lib]
-name = "migration"
+name = "entities"
 path = "src/lib.rs"
 
 [dependencies]
+thiserror = "1.0.57"
 async-std = { version = "1", features = ["attributes", "tokio1"] }
+sea-orm = { version = "^0.12.0", features = [
+    "sqlx-postgres",
+    "runtime-tokio-native-tls",
+    "macros",
+] }
 
 [dependencies.sea-orm-migration]
 version = "0.12.0"

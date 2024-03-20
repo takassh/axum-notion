@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use models::{init_repository, repositories::Repository, ModelsError};
 use notion_client::{endpoints::Client, NotionClientError};
+use repositories::{init_repository, RepositoriesError, Repository};
 mod block;
 mod page;
 
@@ -32,13 +32,13 @@ impl Config {
 #[derive(Debug, thiserror::Error)]
 pub enum SyncNotionError {
     #[error("Failed to init repository: {}", source)]
-    FailedToInitRepository { source: ModelsError },
+    FailedToInitRepository { source: RepositoriesError },
 
     #[error("Failed to init notion client: {}", source)]
     FailedToInitNotionClient { source: NotionClientError },
 
     #[error("Failed to call repository: {}", source)]
-    FailedToCallRepository { source: ModelsError },
+    FailedToCallRepository { source: RepositoriesError },
 }
 
 pub async fn serve(
@@ -54,7 +54,8 @@ pub async fn serve(
     let client = Client::new(notion_token)
         .map_err(|e| SyncNotionError::FailedToInitNotionClient { source: e })?;
 
-    let state = Arc::new(Config::new(repository, client, notion_db_id, pause_secs));
+    let state =
+        Arc::new(Config::new(repository, client, notion_db_id, pause_secs));
 
     page::spawn_service_to_get_pages(state.clone()).await?;
     block::spawn_service_to_get_blocks(state.clone()).await

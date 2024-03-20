@@ -1,10 +1,9 @@
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    response::IntoResponse,
     Json,
 };
-use models::Repository;
+use repositories::Repository;
 mod request;
 mod response;
 
@@ -26,7 +25,7 @@ pub async fn get_blocks(
         blocks: blocks
             .into_iter()
             .map(|a| Block {
-                parent_id: a.id,
+                parent_id: a.notion_page_id,
                 contents: a.contents,
             })
             .collect(),
@@ -39,7 +38,7 @@ pub async fn get_block(
     State(repo): State<Repository>,
     Path(id): Path<String>,
 ) -> Result<Json<GetBlockRespose>, ResponseError> {
-    let block = repo.block.find_by_id(id).await.map_err(|e| {
+    let block = repo.block.find_by_notion_page_id(id).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Something went wrong: {e}"),
@@ -52,21 +51,21 @@ pub async fn get_block(
 
     Ok(Json(GetBlockRespose {
         block: Some(Block {
-            parent_id: block.id,
+            parent_id: block.notion_page_id,
             contents: block.contents,
         }),
     }))
 }
 
-pub async fn delete_block(
-    State(repo): State<Repository>,
-    Json(id): Json<String>,
-) -> Result<impl IntoResponse, ResponseError> {
-    match repo.block.delete_by_id(id).await {
-        Ok(v) => Ok(v),
-        Err(e) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Something went wrong: {e}"),
-        )),
-    }
-}
+// pub async fn delete_block(
+//     State(repo): State<Repository>,
+//     Json(id): Json<String>,
+// ) -> Result<impl IntoResponse, ResponseError> {
+//     match repo.block.delete_by_id(id).await {
+//         Ok(v) => Ok(v),
+//         Err(e) => Err((
+//             StatusCode::INTERNAL_SERVER_ERROR,
+//             format!("Something went wrong: {e}"),
+//         )),
+//     }
+// }

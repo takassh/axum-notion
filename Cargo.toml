@@ -1,4 +1,4 @@
-workspace = { members = ["libs/api", "libs/models", "libs/sync-notion"] }
+workspace = { members = ["libs/api", "libs/entities", "libs/repositories", "libs/sync-github", "libs/sync-notion"] }
 [package]
 name = "axum-notion"
 version = "0.1.0"
@@ -13,3 +13,4 @@ tracing = "0.1.40"
 api = { path = "./libs/api" }
 shuttle-secrets = "0.39.0"
 sync-notion = { path = "./libs/sync-notion" }
+octocrab = "0.36.0"

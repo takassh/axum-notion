@@ -1,0 +1,12 @@
+name: Weekly Checks
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"
+
+permissions:
+  contents: write
+
+jobs:
+  run-ci:
+    uses: ./.github/workflows/ci.yaml

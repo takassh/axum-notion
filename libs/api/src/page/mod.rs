@@ -4,17 +4,21 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use models::{ModelsError, Repository};
+use repositories::{RepositoriesError, Repository};
+
 mod request;
-mod response;
+pub mod response;
 
 use self::response::{GetPageRespose, GetPagesRespose, Page};
 
-fn into_response(e: ModelsError, message: &str) -> Response {
-    (StatusCode::INTERNAL_SERVER_ERROR, format!("{message}: {e}")).into_response()
+fn into_response(e: RepositoriesError, message: &str) -> Response {
+    (StatusCode::INTERNAL_SERVER_ERROR, format!("{message}: {e}"))
+        .into_response()
 }
 
-pub async fn get_pages(State(repo): State<Repository>) -> Result<Json<GetPagesRespose>, Response> {
+pub async fn get_pages(
+    State(repo): State<Repository>,
+) -> Result<Json<GetPagesRespose>, Response> {
     let pages = repo
         .page
         .find_all()
@@ -54,12 +58,12 @@ pub async fn get_page(
     }))
 }
 
-pub async fn delete_page(
-    State(repo): State<Repository>,
-    Json(id): Json<String>,
-) -> Result<impl IntoResponse, Response> {
-    match repo.page.delete_by_id(id).await {
-        Ok(v) => Ok(v),
-        Err(e) => Err(into_response(e, "delete by id")),
-    }
-}
+// pub async fn delete_page(
+//     State(repo): State<Repository>,
+//     Json(id): Json<String>,
+// ) -> Result<impl IntoResponse, Response> {
+//     match repo.page.delete_by_id(id).await {
+//         Ok(v) => Ok(v),
+//         Err(e) => Err(into_response(e, "delete by id")),
+//     }
+// }

@@ -1,11 +1,10 @@
 use crate::{Config, SyncNotionError};
 use async_recursion::async_recursion;
-use models::entities::block;
+use entities::block;
 use notion_client::{
     self,
     objects::block::{Block, BlockType},
 };
-use sea_orm::ActiveValue;
 use std::{sync::Arc, time::Duration};
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
@@ -18,7 +17,9 @@ struct Message {
     blocks: Vec<Block>,
 }
 
-pub async fn spawn_service_to_get_blocks(state: Arc<Config>) -> Result<(), SyncNotionError> {
+pub async fn spawn_service_to_get_blocks(
+    state: Arc<Config>,
+) -> Result<(), SyncNotionError> {
     let (tx, rx) = mpsc::channel(100);
 
     sender(state.clone(), tx).await?;
@@ -28,15 +29,15 @@ pub async fn spawn_service_to_get_blocks(state: Arc<Config>) -> Result<(), SyncN
 }
 
 #[tracing::instrument]
-async fn sender(state: Arc<Config>, tx: Sender<Message>) -> Result<(), SyncNotionError> {
+async fn sender(
+    state: Arc<Config>,
+    tx: Sender<Message>,
+) -> Result<(), SyncNotionError> {
     tokio::spawn(async move {
         loop {
-            let pages = state
-                .repository
-                .page
-                .find_all()
-                .await
-                .map_err(|e| SyncNotionError::FailedToCallRepository { source: e });
+            let pages = state.repository.page.find_all().await.map_err(|e| {
+                SyncNotionError::FailedToCallRepository { source: e }
+            });
 
             if let Err(e) = &pages {
                 error!("find all: {}", e);
@@ -44,9 +45,10 @@ async fn sender(state: Arc<Config>, tx: Sender<Message>) -> Result<(), SyncNotio
             let pages = pages.unwrap();
 
             for page in pages {
-                info!("page id {} starts", page.id);
+                info!("page id {} starts", page.notion_page_id);
 
-                let _children = get_children(state.clone(), &page.id).await;
+                let _children =
+                    get_children(state.clone(), &page.notion_page_id).await;
 
                 let mut children = vec![];
                 for _child in _children {
@@ -56,7 +58,7 @@ async fn sender(state: Arc<Config>, tx: Sender<Message>) -> Result<(), SyncNotio
 
                 let result = tx
                     .send(Message {
-                        parent_id: page.id.to_owned(),
+                        parent_id: page.notion_page_id.to_owned(),
                         blocks: children,
                     })
                     .await;
@@ -132,7 +134,11 @@ async fn get_children(state: Arc<Config>, parent_block_id: &str) -> Vec<Block> {
         let response = state
             .client
             .blocks
-            .retrieve_block_children(parent_block_id, next_cursor.as_deref(), None)
+            .retrieve_block_children(
+                parent_block_id,
+                next_cursor.as_deref(),
+                None,
+            )
             .await;
 
         match response {
@@ -157,7 +163,10 @@ async fn get_children(state: Arc<Config>, parent_block_id: &str) -> Vec<Block> {
 }
 
 #[tracing::instrument]
-async fn receiver(state: Arc<Config>, mut rx: Receiver<Message>) -> Result<(), SyncNotionError> {
+async fn receiver(
+    state: Arc<Config>,
+    mut rx: Receiver<Message>,
+) -> Result<(), SyncNotionError> {
     tokio::spawn(async move {
         loop {
             let Some(message) = rx.recv().await else {
@@ -166,33 +175,15 @@ async fn receiver(state: Arc<Config>, mut rx: Receiver<Message>) -> Result<(), S
 
             let parent_id = &message.parent_id;
             let json = serde_json::to_string_pretty(&message.blocks).unwrap();
-            let model = block::ActiveModel {
-                id: ActiveValue::set(parent_id.to_string()),
-                contents: ActiveValue::set(json),
+            let model = block::Model {
+                notion_page_id: parent_id.to_string(),
+                contents: json,
                 ..Default::default()
             };
 
-            let old = state
-                .repository
-                .block
-                .find_by_id(parent_id.to_string())
-                .await;
-            if let Err(e) = old {
-                error!("find by id: {}", e);
-                continue;
-            }
-            let old = old.unwrap();
-
-            if old.is_some() {
-                let result = state.repository.block.update(model).await;
-                if let Err(e) = result {
-                    error!("update: {}", e);
-                }
-            } else {
-                let result = state.repository.block.insert(model).await;
-                if let Err(e) = result {
-                    error!("insert: {}", e);
-                }
+            let result = state.repository.block.save(model).await;
+            if let Err(e) = result {
+                error!("save: {}", e);
             }
         }
     });

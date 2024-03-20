@@ -1,11 +1,13 @@
 use crate::{Config, SyncNotionError};
-use models::entities::page;
+use entities::page;
 use notion_client::{
     self,
-    endpoints::databases::query::request::{QueryDatabaseRequest, Sort, SortDirection, Timestamp},
+    endpoints::databases::query::request::{
+        QueryDatabaseRequest, Sort, SortDirection, Timestamp,
+    },
     objects::page::Page,
 };
-use sea_orm::ActiveValue;
+
 use std::{sync::Arc, time::Duration};
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
@@ -13,7 +15,9 @@ use tokio::{
 };
 use tracing::{error, info};
 
-pub async fn spawn_service_to_get_pages(state: Arc<Config>) -> Result<(), SyncNotionError> {
+pub async fn spawn_service_to_get_pages(
+    state: Arc<Config>,
+) -> Result<(), SyncNotionError> {
     let (tx, rx) = mpsc::channel(100);
 
     sender(state.clone(), tx).await?;
@@ -23,7 +27,10 @@ pub async fn spawn_service_to_get_pages(state: Arc<Config>) -> Result<(), SyncNo
 }
 
 #[tracing::instrument]
-async fn sender(state: Arc<Config>, tx: Sender<Vec<Page>>) -> Result<(), SyncNotionError> {
+async fn sender(
+    state: Arc<Config>,
+    tx: Sender<Vec<Page>>,
+) -> Result<(), SyncNotionError> {
     tokio::spawn(async move {
         loop {
             let pages = scan_all_pages(state.clone()).await;
@@ -83,7 +90,10 @@ async fn scan_all_pages(state: Arc<Config>) -> Vec<Page> {
 }
 
 #[tracing::instrument]
-async fn receiver(state: Arc<Config>, mut rx: Receiver<Vec<Page>>) -> Result<(), SyncNotionError> {
+async fn receiver(
+    state: Arc<Config>,
+    mut rx: Receiver<Vec<Page>>,
+) -> Result<(), SyncNotionError> {
     tokio::spawn(async move {
         loop {
             let Some(pages) = rx.recv().await else {
@@ -92,29 +102,16 @@ async fn receiver(state: Arc<Config>, mut rx: Receiver<Vec<Page>>) -> Result<(),
 
             for page in pages {
                 let json = serde_json::to_string_pretty(&page).unwrap();
-                let model = page::ActiveModel {
-                    id: ActiveValue::set(page.id.clone()),
-                    contents: ActiveValue::set(json),
+                let model = page::Model {
+                    notion_page_id: page.id.clone(),
+                    contents: json,
+                    created_at: page.created_time.naive_utc(),
                     ..Default::default()
                 };
 
-                let old = state.repository.page.find_by_id(page.id).await;
-                if let Err(e) = old {
-                    error!("find by id: {}", e);
-                    continue;
-                }
-                let old = old.unwrap();
-
-                if old.is_some() {
-                    let result = state.repository.page.update(model).await;
-                    if let Err(e) = result {
-                        error!("update: {}", e);
-                    }
-                } else {
-                    let result = state.repository.page.insert(model).await;
-                    if let Err(e) = result {
-                        error!("insert: {}", e);
-                    }
+                let result = state.repository.page.save(model).await;
+                if let Err(e) = result {
+                    error!("save: {}", e);
                 }
             }
         }
