@@ -7,8 +7,8 @@ async fn main(
     #[shuttle_shared_db::Postgres(local_uri = "{secrets.LOCAL_DATABASE_URL}")]
     conn_string: String,
 ) -> shuttle_axum::ShuttleAxum {
-    if let Some(is_on_shuttle) = secret_store.get("SHUTTLE") {
-        if is_on_shuttle == "true" {
+    if let Some(is_on_shuttle) = secret_store.get("ENV") {
+        if is_on_shuttle == "prod" {
             tracing_subscriber::fmt()
                 .with_max_level(tracing::Level::INFO)
                 .init();
