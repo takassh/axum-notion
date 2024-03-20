@@ -6,11 +6,11 @@ pub struct Page {
 }
 
 #[derive(Serialize)]
-pub struct GetPagesRespose {
+pub struct GetPagesResponse {
     pub pages: Vec<Page>,
 }
 
 #[derive(Serialize)]
-pub struct GetPageRespose {
+pub struct GetPageResponse {
     pub page: Option<Page>,
 }

@@ -9,23 +9,20 @@ use repositories::{RepositoriesError, Repository};
 mod request;
 pub mod response;
 
-use self::response::{GetPageRespose, GetPagesRespose, Page};
+use self::response::{GetPageResponse, GetPagesResponse, Page};
 
 fn into_response(e: RepositoriesError, message: &str) -> Response {
-    (StatusCode::INTERNAL_SERVER_ERROR, format!("{message}: {e}"))
-        .into_response()
+    (StatusCode::INTERNAL_SERVER_ERROR, format!("{message}: {e}")).into_response()
 }
 
-pub async fn get_pages(
-    State(repo): State<Repository>,
-) -> Result<Json<GetPagesRespose>, Response> {
+pub async fn get_pages(State(repo): State<Repository>) -> Result<Json<GetPagesResponse>, Response> {
     let pages = repo
         .page
         .find_all()
         .await
         .map_err(|e| into_response(e, "find all"))?;
 
-    let response = Json(GetPagesRespose {
+    let response = Json(GetPagesResponse {
         pages: pages
             .into_iter()
             .map(|a| Page {
@@ -40,7 +37,7 @@ pub async fn get_pages(
 pub async fn get_page(
     State(repo): State<Repository>,
     Path(id): Path<String>,
-) -> Result<Json<GetPageRespose>, Response> {
+) -> Result<Json<GetPageResponse>, Response> {
     let page = repo
         .page
         .find_by_id(id)
@@ -48,10 +45,10 @@ pub async fn get_page(
         .map_err(|e| into_response(e, "find by id"))?;
 
     let Some(page) = page else {
-        return Ok(Json(GetPageRespose { page: None }));
+        return Ok(Json(GetPageResponse { page: None }));
     };
 
-    Ok(Json(GetPageRespose {
+    Ok(Json(GetPageResponse {
         page: Some(Page {
             contents: page.contents,
         }),

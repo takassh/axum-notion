@@ -7,11 +7,11 @@ pub struct Block {
 }
 
 #[derive(Serialize)]
-pub struct GetBlocksRespose {
+pub struct GetBlocksResponse {
     pub blocks: Vec<Block>,
 }
 
 #[derive(Serialize)]
-pub struct GetBlockRespose {
+pub struct GetBlockResponse {
     pub block: Option<Block>,
 }

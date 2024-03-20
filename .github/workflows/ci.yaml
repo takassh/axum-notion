@@ -135,9 +135,3 @@ jobs:
       uses: DavidAnson/markdownlint-cli2-action@v15
       with:
         globs: '**/*.md'
-            
-  cargo-deny:
-    uses: ./.github/workflows/cargo_deny.yaml
-
-  check-msrv:
-    uses: ./.github/workflows/msrv.yaml

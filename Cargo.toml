@@ -1,4 +1,10 @@
-workspace = { members = ["libs/api", "libs/entities", "libs/repositories", "libs/sync-github", "libs/sync-notion"] }
+workspace = { members = [
+    "libs/api",
+    "libs/entities",
+    "libs/repositories",
+    "libs/sync-github",
+    "libs/sync-notion",
+] }
 [package]
 name = "axum-notion"
 version = "0.1.0"
