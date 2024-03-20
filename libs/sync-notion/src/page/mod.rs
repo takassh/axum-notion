@@ -1,7 +1,6 @@
 use crate::{Config, SyncNotionError};
 use entities::page;
 use notion_client::{
-    self,
     endpoints::databases::query::request::{QueryDatabaseRequest, Sort, SortDirection, Timestamp},
     objects::page::Page,
 };
