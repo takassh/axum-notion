@@ -30,7 +30,9 @@ pub enum RepositoriesError {
     FailedToSave { source: DbErr },
 }
 
-pub async fn init_repository(db_url: &str) -> Result<Repository, RepositoriesError> {
+pub async fn init_repository(
+    db_url: &str,
+) -> Result<Repository, RepositoriesError> {
     let db = entities::init_db(db_url)
         .await
         .map_err(|e| RepositoriesError::FailedToInitDB { source: e })?;

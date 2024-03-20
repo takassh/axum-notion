@@ -54,7 +54,8 @@ pub async fn serve(
     let client = Client::new(notion_token)
         .map_err(|e| SyncNotionError::FailedToInitNotionClient { source: e })?;
 
-    let state = Arc::new(Config::new(repository, client, notion_db_id, pause_secs));
+    let state =
+        Arc::new(Config::new(repository, client, notion_db_id, pause_secs));
 
     page::spawn_service_to_get_pages(state.clone()).await?;
     block::spawn_service_to_get_blocks(state.clone()).await

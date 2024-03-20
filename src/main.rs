@@ -4,7 +4,8 @@ use tracing::info;
 #[shuttle_runtime::main]
 async fn main(
     #[Secrets] secret_store: SecretStore,
-    #[shuttle_shared_db::Postgres(local_uri = "{secrets.LOCAL_DATABASE_URL}")] conn_string: String,
+    #[shuttle_shared_db::Postgres(local_uri = "{secrets.LOCAL_DATABASE_URL}")]
+    conn_string: String,
 ) -> shuttle_axum::ShuttleAxum {
     if let Some(is_on_shuttle) = secret_store.get("SHUTTLE") {
         if is_on_shuttle == "true" {
@@ -21,10 +22,14 @@ async fn main(
     info!("Server listening");
 
     let Some(notion_token) = secret_store.get("NOTION_TOKEN") else {
-        return Err(Error::BuildPanic("NOTION_TOKEN was not found".to_string()));
+        return Err(Error::BuildPanic(
+            "NOTION_TOKEN was not found".to_string(),
+        ));
     };
     let Some(notion_db_id) = secret_store.get("NOTION_DB_ID") else {
-        return Err(Error::BuildPanic("NOTION_DB_ID was not found".to_string()));
+        return Err(Error::BuildPanic(
+            "NOTION_DB_ID was not found".to_string(),
+        ));
     };
     let Some(pause_secs) = secret_store.get("PAUSE_SECS") else {
         return Err(Error::BuildPanic("PAUSE_SECS was not found".to_string()));

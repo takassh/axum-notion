@@ -30,7 +30,9 @@ pub enum EntitiesError {
     FailedToUpDB { source: DbErr },
 }
 
-pub async fn init_db(db_url: &str) -> Result<DatabaseConnection, EntitiesError> {
+pub async fn init_db(
+    db_url: &str,
+) -> Result<DatabaseConnection, EntitiesError> {
     let mut opt = ConnectOptions::new(db_url);
     opt.max_connections(5)
         .min_connections(1)

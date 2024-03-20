@@ -12,10 +12,13 @@ pub mod response;
 use self::response::{GetPageResponse, GetPagesResponse, Page};
 
 fn into_response(e: RepositoriesError, message: &str) -> Response {
-    (StatusCode::INTERNAL_SERVER_ERROR, format!("{message}: {e}")).into_response()
+    (StatusCode::INTERNAL_SERVER_ERROR, format!("{message}: {e}"))
+        .into_response()
 }
 
-pub async fn get_pages(State(repo): State<Repository>) -> Result<Json<GetPagesResponse>, Response> {
+pub async fn get_pages(
+    State(repo): State<Repository>,
+) -> Result<Json<GetPagesResponse>, Response> {
     let pages = repo
         .page
         .find_all()

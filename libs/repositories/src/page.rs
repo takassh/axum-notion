@@ -1,5 +1,7 @@
 use chrono::Utc;
-use sea_orm::{sea_query, DatabaseConnection, EntityTrait, Iterable, QueryFilter};
+use sea_orm::{
+    sea_query, DatabaseConnection, EntityTrait, Iterable, QueryFilter,
+};
 
 use entities::page::{self, Column};
 use sea_orm::ColumnTrait;
@@ -19,14 +21,19 @@ impl PageRepository {
 }
 
 impl PageRepository {
-    pub async fn find_all(&self) -> Result<Vec<page::Model>, RepositoriesError> {
+    pub async fn find_all(
+        &self,
+    ) -> Result<Vec<page::Model>, RepositoriesError> {
         page::Entity::find()
             .all(&self.db)
             .await
             .map_err(|e| RepositoriesError::FailedToQuery { source: e })
     }
 
-    pub async fn find_by_id(&self, id: String) -> Result<Option<page::Model>, RepositoriesError> {
+    pub async fn find_by_id(
+        &self,
+        id: String,
+    ) -> Result<Option<page::Model>, RepositoriesError> {
         page::Entity::find()
             .filter(Column::NotionPageId.eq(id))
             .one(&self.db)
@@ -34,7 +41,10 @@ impl PageRepository {
             .map_err(|e| RepositoriesError::FailedToQuery { source: e })
     }
 
-    pub async fn save(&self, mut page: page::Model) -> Result<(), RepositoriesError> {
+    pub async fn save(
+        &self,
+        mut page: page::Model,
+    ) -> Result<(), RepositoriesError> {
         page.updated_at = Some(Utc::now().naive_utc());
         let _ = page::Entity::insert(page.into_active_model())
             .on_conflict(

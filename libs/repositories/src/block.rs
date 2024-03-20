@@ -1,5 +1,7 @@
 use chrono::Utc;
-use sea_orm::{sea_query, DatabaseConnection, EntityTrait, IntoActiveModel, Iterable};
+use sea_orm::{
+    sea_query, DatabaseConnection, EntityTrait, IntoActiveModel, Iterable,
+};
 
 use entities::block::{self, Column};
 use sea_orm::{ColumnTrait, QueryFilter};
@@ -18,7 +20,9 @@ impl BlockRepository {
 }
 
 impl BlockRepository {
-    pub async fn find_all(&self) -> Result<Vec<block::Model>, RepositoriesError> {
+    pub async fn find_all(
+        &self,
+    ) -> Result<Vec<block::Model>, RepositoriesError> {
         block::Entity::find()
             .all(&self.db)
             .await
@@ -36,7 +40,10 @@ impl BlockRepository {
             .map_err(|e| RepositoriesError::FailedToQuery { source: e })
     }
 
-    pub async fn save(&self, mut block: block::Model) -> Result<(), RepositoriesError> {
+    pub async fn save(
+        &self,
+        mut block: block::Model,
+    ) -> Result<(), RepositoriesError> {
         block.updated_at = Some(Utc::now().naive_utc());
         let _ = block::Entity::insert(block.into_active_model())
             .on_conflict(

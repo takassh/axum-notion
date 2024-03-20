@@ -14,7 +14,9 @@ struct Message {
     blocks: Vec<Block>,
 }
 
-pub async fn spawn_service_to_get_blocks(state: Arc<Config>) -> Result<(), SyncNotionError> {
+pub async fn spawn_service_to_get_blocks(
+    state: Arc<Config>,
+) -> Result<(), SyncNotionError> {
     let (tx, rx) = mpsc::channel(100);
 
     sender(state.clone(), tx).await?;
@@ -24,15 +26,15 @@ pub async fn spawn_service_to_get_blocks(state: Arc<Config>) -> Result<(), SyncN
 }
 
 #[tracing::instrument]
-async fn sender(state: Arc<Config>, tx: Sender<Message>) -> Result<(), SyncNotionError> {
+async fn sender(
+    state: Arc<Config>,
+    tx: Sender<Message>,
+) -> Result<(), SyncNotionError> {
     tokio::spawn(async move {
         loop {
-            let pages = state
-                .repository
-                .page
-                .find_all()
-                .await
-                .map_err(|e| SyncNotionError::FailedToCallRepository { source: e });
+            let pages = state.repository.page.find_all().await.map_err(|e| {
+                SyncNotionError::FailedToCallRepository { source: e }
+            });
 
             if let Err(e) = &pages {
                 error!("find all: {}", e);
@@ -42,7 +44,8 @@ async fn sender(state: Arc<Config>, tx: Sender<Message>) -> Result<(), SyncNotio
             for page in pages {
                 info!("page id {} starts", page.notion_page_id);
 
-                let _children = get_children(state.clone(), &page.notion_page_id).await;
+                let _children =
+                    get_children(state.clone(), &page.notion_page_id).await;
 
                 let mut children = vec![];
                 for _child in _children {
@@ -128,7 +131,11 @@ async fn get_children(state: Arc<Config>, parent_block_id: &str) -> Vec<Block> {
         let response = state
             .client
             .blocks
-            .retrieve_block_children(parent_block_id, next_cursor.as_deref(), None)
+            .retrieve_block_children(
+                parent_block_id,
+                next_cursor.as_deref(),
+                None,
+            )
             .await;
 
         match response {
@@ -153,7 +160,10 @@ async fn get_children(state: Arc<Config>, parent_block_id: &str) -> Vec<Block> {
 }
 
 #[tracing::instrument]
-async fn receiver(state: Arc<Config>, mut rx: Receiver<Message>) -> Result<(), SyncNotionError> {
+async fn receiver(
+    state: Arc<Config>,
+    mut rx: Receiver<Message>,
+) -> Result<(), SyncNotionError> {
     tokio::spawn(async move {
         loop {
             let Some(message) = rx.recv().await else {
