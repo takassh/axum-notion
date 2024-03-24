@@ -1,10 +1,13 @@
-use axum::{
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
-use repositories::RepositoriesError;
+use std::path::{Path, PathBuf};
 
-pub fn into_response(e: RepositoriesError, message: &str) -> Response {
-    (StatusCode::INTERNAL_SERVER_ERROR, format!("{message}: {e}"))
-        .into_response()
+pub fn workspace_dir() -> PathBuf {
+    let output = std::process::Command::new(env!("CARGO"))
+        .arg("locate-project")
+        .arg("--workspace")
+        .arg("--message-format=plain")
+        .output()
+        .unwrap()
+        .stdout;
+    let cargo_path = Path::new(std::str::from_utf8(&output).unwrap().trim());
+    cargo_path.parent().unwrap().to_path_buf()
 }

@@ -6,7 +6,7 @@ use sea_orm::{
 use entities::block::{self, Column};
 use sea_orm::{ColumnTrait, QueryFilter};
 
-use crate::RepositoriesError;
+use crate::{IntoResponse, Response};
 
 #[derive(Clone, Debug)]
 pub struct BlockRepository {
@@ -22,28 +22,25 @@ impl BlockRepository {
 impl BlockRepository {
     pub async fn find_all(
         &self,
-    ) -> Result<Vec<block::Model>, RepositoriesError> {
-        block::Entity::find()
-            .all(&self.db)
-            .await
-            .map_err(|e| RepositoriesError::FailedToQuery { source: e })
+    ) -> Response<Vec<block::Model>> {
+        block::Entity::find().all(&self.db).await.into_response("find all")
     }
 
     pub async fn find_by_notion_page_id(
         &self,
         id: String,
-    ) -> Result<Option<block::Model>, RepositoriesError> {
+    ) -> Response<Option<block::Model>> {
         block::Entity::find()
             .filter(Column::NotionPageId.eq(id))
             .one(&self.db)
             .await
-            .map_err(|e| RepositoriesError::FailedToQuery { source: e })
+            .into_response("find by notion page id")
     }
 
     pub async fn save(
         &self,
         mut block: block::Model,
-    ) -> Result<(), RepositoriesError> {
+    ) -> Response<()> {
         block.updated_at = Some(Utc::now().naive_utc());
         let _ = block::Entity::insert(block.into_active_model())
             .on_conflict(
@@ -53,7 +50,7 @@ impl BlockRepository {
             )
             .exec(&self.db)
             .await
-            .map_err(|e| RepositoriesError::FailedToSave { source: e })?;
+            .into_response("save")?;
 
         Ok(())
     }

@@ -1,6 +1,5 @@
 use axum::{
     extract::{Path, State},
-    response::Response,
     Json,
 };
 use repositories::Repository;
@@ -8,18 +7,18 @@ use repositories::Repository;
 mod request;
 pub mod response;
 
-use crate::util::into_response;
+use crate::{ApiResponse, IntoApiResponse};
 
 use self::response::{GetPageResponse, GetPagesResponse, Page};
 
 pub async fn get_pages(
     State(repo): State<Repository>,
-) -> Result<Json<GetPagesResponse>, Response> {
+) -> ApiResponse<Json<GetPagesResponse>> {
     let pages = repo
         .page
         .find_all()
         .await
-        .map_err(|e| into_response(e, "find all"))?;
+        .into_response("502-001")?;
 
     let response = Json(GetPagesResponse {
         pages: pages
@@ -36,12 +35,8 @@ pub async fn get_pages(
 pub async fn get_page(
     State(repo): State<Repository>,
     Path(id): Path<String>,
-) -> Result<Json<GetPageResponse>, Response> {
-    let page = repo
-        .page
-        .find_by_id(id)
-        .await
-        .map_err(|e| into_response(e, "find by id"))?;
+) -> ApiResponse<Json<GetPageResponse>> {
+    let page = repo.page.find_by_id(id).await.into_response("502-002")?;
 
     let Some(page) = page else {
         return Ok(Json(GetPageResponse { page: None }));

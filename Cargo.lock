@@ -139,6 +139,7 @@ dependencies = [
  "entities",
  "repositories",
  "serde",
+ "serde_json",
  "thiserror",
  "tower-http",
  "tracing",

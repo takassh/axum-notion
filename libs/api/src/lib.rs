@@ -1,10 +1,16 @@
-use axum::{routing::get, Router};
+use std::fs;
+
+use axum::{http::StatusCode, response::IntoResponse, routing::get, Router};
 use repositories::{init_repository, RepositoriesError};
+use serde_json::Value;
 use tower_http::cors::CorsLayer;
-use tracing::info;
+use tracing::{error, info};
+
+use crate::util::workspace_dir;
 
 pub mod block;
 pub mod event;
+pub mod feed;
 pub mod healthz;
 pub mod not_found;
 pub mod page;
@@ -12,18 +18,47 @@ mod util;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError {
-    #[error("Failed to init repository: {}", source)]
-    FailedToInitRepository { source: RepositoriesError },
+    #[error("{:?}", m)]
+    InternalServerError { m: String },
 }
 
-pub async fn serve(conn_string: &str) -> Result<Router, ApiError> {
+impl IntoResponse for ApiError {
+    fn into_response(self) -> axum::response::Response {
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("{}", self)).into_response()
+    }
+}
+
+type ApiResponse<T> = Result<T, ApiError>;
+
+pub trait IntoApiResponse<T> {
+    fn into_response(self, c: &str) -> ApiResponse<T>;
+}
+
+impl<T> IntoApiResponse<T> for Result<T, RepositoriesError> {
+    fn into_response(self, c: &str) -> ApiResponse<T> {
+        self.map_err(|e| {
+            error!("{:?}", e);
+            let errors = fs::read_to_string(
+                workspace_dir().join("libs/api/src/error.json"),
+            )
+            .unwrap();
+            let parsed: Value = serde_json::from_str(&errors).unwrap();
+            let errors = parsed.as_object().unwrap().clone();
+            ApiError::InternalServerError {
+                m: errors[c].as_str().unwrap().to_string(),
+            }
+        })
+    }
+}
+
+pub async fn serve(conn_string: &str) -> ApiResponse<Router> {
     info!("Start API Serving");
 
     let origins = ["http://localhost:3000".parse().unwrap()];
 
     let repository = init_repository(conn_string)
         .await
-        .map_err(|e| ApiError::FailedToInitRepository { source: e })?;
+        .into_response("500-001")?;
 
     // pages
     let page_router = Router::new()

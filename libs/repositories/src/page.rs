@@ -7,7 +7,8 @@ use entities::page::{self, Column};
 use sea_orm::ColumnTrait;
 use sea_orm::IntoActiveModel;
 
-use crate::RepositoriesError;
+use crate::IntoResponse;
+use crate::Response;
 
 #[derive(Clone, Debug)]
 pub struct PageRepository {
@@ -23,28 +24,28 @@ impl PageRepository {
 impl PageRepository {
     pub async fn find_all(
         &self,
-    ) -> Result<Vec<page::Model>, RepositoriesError> {
+    ) -> Response<Vec<page::Model>> {
         page::Entity::find()
             .all(&self.db)
             .await
-            .map_err(|e| RepositoriesError::FailedToQuery { source: e })
+            .into_response("find all")
     }
 
     pub async fn find_by_id(
         &self,
         id: String,
-    ) -> Result<Option<page::Model>, RepositoriesError> {
+    ) -> Response<Option<page::Model>> {
         page::Entity::find()
             .filter(Column::NotionPageId.eq(id))
             .one(&self.db)
             .await
-            .map_err(|e| RepositoriesError::FailedToQuery { source: e })
+            .into_response("find by id")
     }
 
     pub async fn save(
         &self,
         mut page: page::Model,
-    ) -> Result<(), RepositoriesError> {
+    ) -> Response<()> {
         page.updated_at = Some(Utc::now().naive_utc());
         let _ = page::Entity::insert(page.into_active_model())
             .on_conflict(
@@ -54,7 +55,7 @@ impl PageRepository {
             )
             .exec(&self.db)
             .await
-            .map_err(|e| RepositoriesError::FailedToSave { source: e })?;
+            .into_response("save")?;
 
         Ok(())
     }

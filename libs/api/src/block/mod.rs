@@ -1,24 +1,19 @@
 use axum::{
     extract::{Path, State},
-    response::Response,
     Json,
 };
 use repositories::Repository;
 mod request;
 mod response;
 
-use crate::util::into_response;
+use crate::{ApiResponse, IntoApiResponse};
 
 use self::response::{Block, GetBlockResponse, GetBlocksResponse};
 
 pub async fn get_blocks(
     State(repo): State<Repository>,
-) -> Result<Json<GetBlocksResponse>, Response> {
-    let blocks = repo
-        .block
-        .find_all()
-        .await
-        .map_err(|e| into_response(e, "find all"))?;
+) -> ApiResponse<Json<GetBlocksResponse>> {
+    let blocks = repo.block.find_all().await.into_response("502-003")?;
 
     let response = Json(GetBlocksResponse {
         blocks: blocks
@@ -36,12 +31,12 @@ pub async fn get_blocks(
 pub async fn get_block(
     State(repo): State<Repository>,
     Path(id): Path<String>,
-) -> Result<Json<GetBlockResponse>, Response> {
+) -> ApiResponse<Json<GetBlockResponse>> {
     let block = repo
         .block
         .find_by_notion_page_id(id)
         .await
-        .map_err(|e| into_response(e, "find by notion page id"))?;
+        .into_response("502-004")?;
 
     let Some(block) = block else {
         return Ok(Json(GetBlockResponse { block: None }));

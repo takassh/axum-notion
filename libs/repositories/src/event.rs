@@ -6,7 +6,7 @@ use sea_orm::{
 use entities::event::{self, Column};
 use sea_orm::{ColumnTrait, QueryFilter};
 
-use crate::RepositoriesError;
+use crate::{IntoResponse, Response};
 
 #[derive(Clone, Debug)]
 pub struct EventRepository {
@@ -22,28 +22,25 @@ impl EventRepository {
 impl EventRepository {
     pub async fn find_all(
         &self,
-    ) -> Result<Vec<event::Model>, RepositoriesError> {
-        event::Entity::find()
-            .all(&self.db)
-            .await
-            .map_err(|e| RepositoriesError::FailedToQuery { source: e })
+    ) -> Response<Vec<event::Model>> {
+        event::Entity::find().all(&self.db).await.into_response("find all")
     }
 
     pub async fn find_by_event_id(
         &self,
         id: String,
-    ) -> Result<Option<event::Model>, RepositoriesError> {
+    ) -> Response<Option<event::Model>> {
         event::Entity::find()
             .filter(Column::EventId.eq(id))
             .one(&self.db)
             .await
-            .map_err(|e| RepositoriesError::FailedToQuery { source: e })
+            .into_response("find by event id")
     }
 
     pub async fn save(
         &self,
         mut event: event::Model,
-    ) -> Result<(), RepositoriesError> {
+    ) -> Response<()> {
         event.updated_at = Some(Utc::now().naive_utc());
         let _ = event::Entity::insert(event.into_active_model())
             .on_conflict(
@@ -53,7 +50,7 @@ impl EventRepository {
             )
             .exec(&self.db)
             .await
-            .map_err(|e| RepositoriesError::FailedToSave { source: e })?;
+            .into_response("save")?;
 
         Ok(())
     }

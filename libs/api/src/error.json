@@ -1,0 +1,11 @@
+{
+    "500-001": "failed to initialize server",
+    "501-001": "failed to authenticate",
+    "502-001": "failed to find pages",
+    "502-002": "failed to find a page",
+    "502-003": "failed to find blocks",
+    "502-004": "failed to find a block",
+    "502-005": "failed to find events",
+    "502-006": "failed to find a event",
+    "502-007": "failed to find feeds"
+}

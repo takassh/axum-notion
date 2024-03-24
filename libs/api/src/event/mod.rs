@@ -1,6 +1,5 @@
 use axum::{
     extract::{Path, State},
-    response::Response,
     Json,
 };
 use repositories::Repository;
@@ -8,18 +7,14 @@ use repositories::Repository;
 mod request;
 pub mod response;
 
-use crate::util::into_response;
+use crate::{ApiResponse, IntoApiResponse};
 
 use self::response::{Event, GetEventResponse, GetEventsResponse};
 
 pub async fn get_events(
     State(repo): State<Repository>,
-) -> Result<Json<GetEventsResponse>, Response> {
-    let events = repo
-        .event
-        .find_all()
-        .await
-        .map_err(|e| into_response(e, "find all"))?;
+) -> ApiResponse<Json<GetEventsResponse>> {
+    let events = repo.event.find_all().await.into_response("502-005")?;
 
     let response = Json(GetEventsResponse {
         events: events
@@ -36,12 +31,8 @@ pub async fn get_events(
 pub async fn get_event(
     State(repo): State<Repository>,
     Path(id): Path<String>,
-) -> Result<Json<GetEventResponse>, Response> {
-    let event = repo
-        .event
-        .find_by_event_id(id)
-        .await
-        .map_err(|e| into_response(e, "find by event id"))?;
+) -> ApiResponse<Json<GetEventResponse>> {
+    let event = repo.event.find_by_event_id(id).await.into_response("502-006")?;
 
     let Some(event) = event else {
         return Ok(Json(GetEventResponse { event: None }));
