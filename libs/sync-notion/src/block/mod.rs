@@ -1,4 +1,4 @@
-use crate::{Config, SyncNotionError};
+use crate::{State, SyncNotionError};
 use async_recursion::async_recursion;
 use entities::block;
 use notion_client::objects::block::{Block, BlockType};
@@ -15,7 +15,7 @@ struct Message {
 }
 
 pub async fn spawn_service_to_get_blocks(
-    state: Arc<Config>,
+    state: Arc<State>,
 ) -> Result<(), SyncNotionError> {
     let (tx, rx) = mpsc::channel(100);
 
@@ -27,7 +27,7 @@ pub async fn spawn_service_to_get_blocks(
 
 #[tracing::instrument]
 async fn sender(
-    state: Arc<Config>,
+    state: Arc<State>,
     tx: Sender<Message>,
 ) -> Result<(), SyncNotionError> {
     tokio::spawn(async move {
@@ -69,7 +69,7 @@ async fn sender(
 }
 
 #[async_recursion]
-async fn scan_block(state: Arc<Config>, mut block: Block) -> Block {
+async fn scan_block(state: Arc<State>, mut block: Block) -> Block {
     let Some(id) = &block.id else {
         return block;
     };
@@ -124,7 +124,7 @@ async fn scan_block(state: Arc<Config>, mut block: Block) -> Block {
 }
 
 #[tracing::instrument]
-async fn get_children(state: Arc<Config>, parent_block_id: &str) -> Vec<Block> {
+async fn get_children(state: Arc<State>, parent_block_id: &str) -> Vec<Block> {
     let mut next_cursor: Option<String> = None;
     let mut blocks = vec![];
     loop {
@@ -161,7 +161,7 @@ async fn get_children(state: Arc<Config>, parent_block_id: &str) -> Vec<Block> {
 
 #[tracing::instrument]
 async fn receiver(
-    state: Arc<Config>,
+    state: Arc<State>,
     mut rx: Receiver<Message>,
 ) -> Result<(), SyncNotionError> {
     tokio::spawn(async move {

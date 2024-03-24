@@ -1,21 +1,18 @@
 use block::BlockRepository;
 use entities::EntitiesError;
+use event::EventRepository;
 use page::PageRepository;
 use sea_orm::prelude::DbErr;
 
 pub mod block;
+pub mod event;
 pub mod page;
 
 #[derive(Clone, Debug)]
 pub struct Repository {
     pub page: PageRepository,
     pub block: BlockRepository,
-}
-
-impl Repository {
-    pub fn new(page: PageRepository, block: BlockRepository) -> Self {
-        Self { page, block }
-    }
+    pub event: EventRepository,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -37,10 +34,11 @@ pub async fn init_repository(
         .await
         .map_err(|e| RepositoriesError::FailedToInitDB { source: e })?;
 
-    let repository = Repository::new(
-        PageRepository::new(db.clone()),
-        BlockRepository::new(db.clone()),
-    );
+    let repository = Repository {
+        page: PageRepository::new(db.clone()),
+        block: BlockRepository::new(db.clone()),
+        event: EventRepository::new(db.clone()),
+    };
 
     Ok(repository)
 }

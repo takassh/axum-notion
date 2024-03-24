@@ -1,4 +1,7 @@
+use std::fs;
+
 use shuttle_runtime::{Error, SecretStore, Secrets};
+use toml::Table;
 use tracing::info;
 
 #[shuttle_runtime::main]
@@ -7,8 +10,8 @@ async fn main(
     #[shuttle_shared_db::Postgres(local_uri = "{secrets.LOCAL_DATABASE_URL}")]
     conn_string: String,
 ) -> shuttle_axum::ShuttleAxum {
-    if let Some(is_on_shuttle) = secret_store.get("ENV") {
-        if is_on_shuttle == "prod" {
+    if let Some(env) = secret_store.get("ENV") {
+        if env == "prod" {
             tracing_subscriber::fmt()
                 .with_max_level(tracing::Level::INFO)
                 .init();
@@ -31,14 +34,21 @@ async fn main(
             "NOTION_DB_ID was not found".to_string(),
         ));
     };
-    let Some(pause_secs) = secret_store.get("PAUSE_SECS") else {
-        return Err(Error::BuildPanic("PAUSE_SECS was not found".to_string()));
-    };
-    let Ok(pause_secs) = pause_secs.parse() else {
-        return Err(Error::BuildPanic("PAUSE_SECS was not u64".to_string()));
+    let Some(github_token) = secret_store.get("GITHUB_TOKEN") else {
+        return Err(Error::BuildPanic(
+            "GITHUB_TOKEN was not found".to_string(),
+        ));
     };
 
-    sync_notion::serve(&conn_string, notion_token, notion_db_id, pause_secs)
+    let config = fs::read_to_string("Config.toml")?;
+    let config = toml::from_str::<Table>(&config)
+        .map_err(|e| Error::BuildPanic(e.to_string()))?;
+
+    sync_notion::serve(&conn_string, notion_token, notion_db_id, &config)
+        .await
+        .map_err(|e| Error::BuildPanic(e.to_string()))?;
+
+    sync_github::serve(&conn_string, &github_token)
         .await
         .map_err(|e| Error::BuildPanic(e.to_string()))?;
 
