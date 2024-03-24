@@ -80,6 +80,6 @@ impl Client {
             });
         }
 
-        return Ok((text, headers));
+        Ok((text, headers))
     }
 }
