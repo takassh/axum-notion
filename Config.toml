@@ -1,7 +1,7 @@
 [notion]
-pause_secs = 1
+pause_secs = 2
 
 [github]
 base_url = "https://api.github.com"
-pause_secs = 1
+pause_secs = 2
 username = "takassh"

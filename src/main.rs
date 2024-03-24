@@ -1,8 +1,5 @@
-use std::fs;
-
 use shuttle_runtime::{Error, SecretStore, Secrets};
-use toml::Table;
-use tracing::info;
+use tokio::join;
 
 #[shuttle_runtime::main]
 async fn main(
@@ -18,11 +15,9 @@ async fn main(
         }
     } else {
         tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::DEBUG)
+            .with_max_level(tracing::Level::INFO)
             .init();
     }
-
-    info!("Server listening");
 
     let Some(notion_token) = secret_store.get("NOTION_TOKEN") else {
         return Err(Error::BuildPanic(
@@ -40,21 +35,15 @@ async fn main(
         ));
     };
 
-    let config = fs::read_to_string("Config.toml")?;
-    let config = toml::from_str::<Table>(&config)
-        .map_err(|e| Error::BuildPanic(e.to_string()))?;
+    let (notion, github, router) = join!(
+        sync_notion::serve(&conn_string, notion_token, notion_db_id),
+        sync_github::serve(&conn_string, &github_token),
+        api::serve(&conn_string)
+    );
 
-    sync_notion::serve(&conn_string, notion_token, notion_db_id, &config)
-        .await
-        .map_err(|e| Error::BuildPanic(e.to_string()))?;
-
-    sync_github::serve(&conn_string, &github_token)
-        .await
-        .map_err(|e| Error::BuildPanic(e.to_string()))?;
-
-    let router = api::serve(&conn_string)
-        .await
-        .map_err(|e| Error::BuildPanic(e.to_string()))?;
+    let _ = notion.map_err(|e| Error::BuildPanic(e.to_string()))?;
+    let _ = github.map_err(|e| Error::BuildPanic(e.to_string()))?;
+    let router = router.map_err(|e| Error::BuildPanic(e.to_string()))?;
 
     Ok(router.into())
 }

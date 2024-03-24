@@ -141,6 +141,7 @@ dependencies = [
  "serde",
  "thiserror",
  "tower-http",
+ "tracing",
 ]
 
 [[package]]

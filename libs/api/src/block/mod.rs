@@ -1,25 +1,24 @@
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    response::Response,
     Json,
 };
 use repositories::Repository;
 mod request;
 mod response;
 
-use self::response::{Block, GetBlockResponse, GetBlocksResponse};
+use crate::util::into_response;
 
-type ResponseError = (StatusCode, String);
+use self::response::{Block, GetBlockResponse, GetBlocksResponse};
 
 pub async fn get_blocks(
     State(repo): State<Repository>,
-) -> Result<Json<GetBlocksResponse>, ResponseError> {
-    let blocks = repo.block.find_all().await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("failed to get blocks: {e}"),
-        )
-    })?;
+) -> Result<Json<GetBlocksResponse>, Response> {
+    let blocks = repo
+        .block
+        .find_all()
+        .await
+        .map_err(|e| into_response(e, "find all"))?;
 
     let response = Json(GetBlocksResponse {
         blocks: blocks
@@ -37,13 +36,12 @@ pub async fn get_blocks(
 pub async fn get_block(
     State(repo): State<Repository>,
     Path(id): Path<String>,
-) -> Result<Json<GetBlockResponse>, ResponseError> {
-    let block = repo.block.find_by_notion_page_id(id).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Something went wrong: {e}"),
-        )
-    })?;
+) -> Result<Json<GetBlockResponse>, Response> {
+    let block = repo
+        .block
+        .find_by_notion_page_id(id)
+        .await
+        .map_err(|e| into_response(e, "find by notion page id"))?;
 
     let Some(block) = block else {
         return Ok(Json(GetBlockResponse { block: None }));
@@ -56,16 +54,3 @@ pub async fn get_block(
         }),
     }))
 }
-
-// pub async fn delete_block(
-//     State(repo): State<Repository>,
-//     Json(id): Json<String>,
-// ) -> Result<impl IntoResponse, ResponseError> {
-//     match repo.block.delete_by_id(id).await {
-//         Ok(v) => Ok(v),
-//         Err(e) => Err((
-//             StatusCode::INTERNAL_SERVER_ERROR,
-//             format!("Something went wrong: {e}"),
-//         )),
-//     }
-// }

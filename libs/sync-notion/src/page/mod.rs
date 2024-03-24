@@ -19,19 +19,21 @@ pub async fn spawn_service_to_get_pages(
 ) -> Result<(), SyncNotionError> {
     let (tx, rx) = mpsc::channel(100);
 
-    sender(state.clone(), tx).await?;
-    receiver(state.clone(), rx).await?;
+    let _ = sender(state.clone(), tx);
+    let _ = receiver(state.clone(), rx);
 
     Ok(())
 }
 
 #[tracing::instrument]
-async fn sender(
+fn sender(
     state: Arc<State>,
     tx: Sender<Vec<Page>>,
 ) -> Result<(), SyncNotionError> {
     tokio::spawn(async move {
         loop {
+            sleep(Duration::from_secs(state.pause_secs)).await;
+
             let pages = scan_all_pages(state.clone()).await;
 
             info!("Complete scan pages");
@@ -40,8 +42,6 @@ async fn sender(
             if let Err(e) = result {
                 error!("send: {}", e);
             }
-
-            sleep(Duration::from_secs(state.pause_secs)).await;
         }
     });
 
@@ -89,7 +89,7 @@ async fn scan_all_pages(state: Arc<State>) -> Vec<Page> {
 }
 
 #[tracing::instrument]
-async fn receiver(
+fn receiver(
     state: Arc<State>,
     mut rx: Receiver<Vec<Page>>,
 ) -> Result<(), SyncNotionError> {

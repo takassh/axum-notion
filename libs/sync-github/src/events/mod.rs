@@ -3,11 +3,10 @@ use crate::{State, SyncGithubError};
 use entities::event;
 use std::{sync::Arc, time::Duration};
 use tokio::{
-    join,
     sync::mpsc::{self, Receiver, Sender},
     time::sleep,
 };
-use tracing::error;
+use tracing::{error, info};
 
 mod response;
 
@@ -16,7 +15,8 @@ pub async fn spawn_service_to_get_events(
 ) -> Result<(), SyncGithubError> {
     let (tx, rx) = mpsc::channel(100);
 
-    let _ = join!(sender(state.clone(), tx), receiver(state.clone(), rx));
+    let _ = sender(state.clone(), tx);
+    let _ = receiver(state.clone(), rx);
 
     Ok(())
 }
@@ -26,7 +26,7 @@ async fn sender(
     state: Arc<State>,
     tx: Sender<Vec<Event>>,
 ) -> Result<(), SyncGithubError> {
-    let handler = tokio::spawn(async move {
+    tokio::spawn(async move {
         let mut page = 1;
         loop {
             sleep(Duration::from_secs(state.config.pause_secs)).await;
@@ -60,12 +60,11 @@ async fn sender(
             if link.contains("rel=\"next\"") {
                 page += 1;
             } else {
+                info!("Finish to load all events");
                 page = 0;
             }
         }
     });
-
-    let _ = handler.await;
 
     return Ok(());
 }

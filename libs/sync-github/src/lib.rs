@@ -8,6 +8,7 @@ use client::Client;
 use repositories::{init_repository, RepositoriesError, Repository};
 use reqwest::StatusCode;
 use toml::{map::Map, Value};
+use tracing::info;
 use util::workspace_dir;
 
 #[derive(Clone, Debug)]
@@ -58,6 +59,8 @@ pub async fn serve(
     conn_string: &str,
     github_token: &str,
 ) -> Result<(), SyncGithubError> {
+    info!("Start Github Sync");
+
     let config = load_config()?;
 
     let repository = init_repository(conn_string)

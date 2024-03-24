@@ -12,3 +12,4 @@ serde = { version = "1.0.196", features = ["derive"] }
 entities = { path = "../entities" }
 repositories = { path = "../repositories" }
 tower-http = { version = "0.5.2", features = ["cors"] }
+tracing = "0.1.40"

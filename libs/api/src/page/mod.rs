@@ -1,20 +1,16 @@
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
-    response::{IntoResponse, Response},
+    response::Response,
     Json,
 };
-use repositories::{RepositoriesError, Repository};
+use repositories::Repository;
 
 mod request;
 pub mod response;
 
-use self::response::{GetPageResponse, GetPagesResponse, Page};
+use crate::util::into_response;
 
-fn into_response(e: RepositoriesError, message: &str) -> Response {
-    (StatusCode::INTERNAL_SERVER_ERROR, format!("{message}: {e}"))
-        .into_response()
-}
+use self::response::{GetPageResponse, GetPagesResponse, Page};
 
 pub async fn get_pages(
     State(repo): State<Repository>,
@@ -57,13 +53,3 @@ pub async fn get_page(
         }),
     }))
 }
-
-// pub async fn delete_page(
-//     State(repo): State<Repository>,
-//     Json(id): Json<String>,
-// ) -> Result<impl IntoResponse, Response> {
-//     match repo.page.delete_by_id(id).await {
-//         Ok(v) => Ok(v),
-//         Err(e) => Err(into_response(e, "delete by id")),
-//     }
-// }

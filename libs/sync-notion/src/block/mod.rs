@@ -19,14 +19,14 @@ pub async fn spawn_service_to_get_blocks(
 ) -> Result<(), SyncNotionError> {
     let (tx, rx) = mpsc::channel(100);
 
-    sender(state.clone(), tx).await?;
-    receiver(state.clone(), rx).await?;
+    let _ = sender(state.clone(), tx);
+    let _ = receiver(state.clone(), rx);
 
     Ok(())
 }
 
 #[tracing::instrument]
-async fn sender(
+fn sender(
     state: Arc<State>,
     tx: Sender<Message>,
 ) -> Result<(), SyncNotionError> {
@@ -65,6 +65,7 @@ async fn sender(
             }
         }
     });
+
     Ok(())
 }
 
@@ -128,6 +129,8 @@ async fn get_children(state: Arc<State>, parent_block_id: &str) -> Vec<Block> {
     let mut next_cursor: Option<String> = None;
     let mut blocks = vec![];
     loop {
+        sleep(Duration::from_secs(state.pause_secs)).await;
+
         let response = state
             .client
             .blocks
@@ -152,15 +155,13 @@ async fn get_children(state: Arc<State>, parent_block_id: &str) -> Vec<Block> {
                 error!("err: {:?}", e);
             }
         }
-
-        sleep(Duration::from_secs(state.pause_secs)).await;
     }
 
     blocks
 }
 
 #[tracing::instrument]
-async fn receiver(
+fn receiver(
     state: Arc<State>,
     mut rx: Receiver<Message>,
 ) -> Result<(), SyncNotionError> {
@@ -184,6 +185,5 @@ async fn receiver(
             }
         }
     });
-
     return Ok(());
 }
