@@ -41,8 +41,8 @@ async fn main(
         api::serve(&conn_string)
     );
 
-    let _ = notion.map_err(|e| Error::BuildPanic(e.to_string()))?;
-    let _ = github.map_err(|e| Error::BuildPanic(e.to_string()))?;
+    notion.map_err(|e| Error::BuildPanic(e.to_string()))?;
+    github.map_err(|e| Error::BuildPanic(e.to_string()))?;
     let router = router.map_err(|e| Error::BuildPanic(e.to_string()))?;
 
     Ok(router.into())

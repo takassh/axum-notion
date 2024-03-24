@@ -22,7 +22,7 @@ pub async fn spawn_service_to_get_events(
 }
 
 #[tracing::instrument]
-async fn sender(
+fn sender(
     state: Arc<State>,
     tx: Sender<Vec<Event>>,
 ) -> Result<(), SyncGithubError> {
@@ -70,11 +70,11 @@ async fn sender(
 }
 
 #[tracing::instrument]
-async fn receiver(
+fn receiver(
     state: Arc<State>,
     mut rx: Receiver<Vec<Event>>,
 ) -> Result<(), SyncGithubError> {
-    let handler = tokio::spawn(async move {
+    tokio::spawn(async move {
         loop {
             let Some(events) = rx.recv().await else {
                 continue;
@@ -96,8 +96,6 @@ async fn receiver(
             }
         }
     });
-
-    let _ = handler.await;
 
     return Ok(());
 }
