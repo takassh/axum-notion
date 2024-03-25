@@ -6,8 +6,11 @@ use tokio::join;
 use toml::{map::Map, Value};
 use tracing::info;
 use util::workspace_dir;
+
+use crate::response::IntoResponse;
 mod block;
 mod page;
+mod response;
 mod util;
 
 #[derive(Clone, Debug)]
@@ -62,56 +65,6 @@ pub enum SyncNotionError {
 
     #[error("option: {}", message)]
     Option { message: String },
-}
-
-type Response<T> = Result<T, SyncNotionError>;
-
-pub trait IntoResponse<T> {
-    fn into_response(self, message: &str) -> Response<T>;
-}
-
-impl<T> IntoResponse<T> for Result<T, std::io::Error> {
-    fn into_response(self, message: &str) -> Response<T> {
-        self.map_err(|e| SyncNotionError::StdIoError {
-            source: e,
-            message: message.to_string(),
-        })
-    }
-}
-
-impl<T> IntoResponse<T> for Result<T, toml::de::Error> {
-    fn into_response(self, message: &str) -> Response<T> {
-        self.map_err(|e| SyncNotionError::TomlDeError {
-            source: e,
-            message: message.to_string(),
-        })
-    }
-}
-
-impl<T> IntoResponse<T> for Result<T, RepositoryError> {
-    fn into_response(self, message: &str) -> Response<T> {
-        self.map_err(|e| SyncNotionError::RepositoryError {
-            source: e,
-            message: message.to_string(),
-        })
-    }
-}
-
-impl<T> IntoResponse<T> for Result<T, NotionClientError> {
-    fn into_response(self, message: &str) -> Response<T> {
-        self.map_err(|e| SyncNotionError::NotionClientError {
-            source: Box::new(e),
-            message: message.to_string(),
-        })
-    }
-}
-
-impl<T> IntoResponse<T> for Option<T> {
-    fn into_response(self, message: &str) -> Response<T> {
-        self.ok_or_else(|| SyncNotionError::Option {
-            message: message.to_string(),
-        })
-    }
 }
 
 pub async fn serve(

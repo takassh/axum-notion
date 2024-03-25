@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 mod client;
 mod events;
+mod response;
 pub mod util;
 
 use client::Client;
@@ -10,6 +11,8 @@ use reqwest::StatusCode;
 use toml::{map::Map, Value};
 use tracing::info;
 use util::workspace_dir;
+
+use crate::response::IntoResponse;
 
 #[derive(Clone, Debug)]
 pub struct State {
@@ -68,56 +71,6 @@ pub enum SyncGithubError {
 
     #[error("option: {}", message)]
     Option { message: String },
-}
-
-type Response<T> = Result<T, SyncGithubError>;
-
-pub trait IntoResponse<T> {
-    fn into_response(self, message: &str) -> Response<T>;
-}
-
-impl<T> IntoResponse<T> for Result<T, std::io::Error> {
-    fn into_response(self, message: &str) -> Response<T> {
-        self.map_err(|e| SyncGithubError::StdIoError {
-            source: e,
-            message: message.to_string(),
-        })
-    }
-}
-
-impl<T> IntoResponse<T> for Result<T, toml::de::Error> {
-    fn into_response(self, message: &str) -> Response<T> {
-        self.map_err(|e| SyncGithubError::TomlDeError {
-            source: e,
-            message: message.to_string(),
-        })
-    }
-}
-
-impl<T> IntoResponse<T> for Result<T, reqwest::Error> {
-    fn into_response(self, message: &str) -> Response<T> {
-        self.map_err(|e| SyncGithubError::ReqwestError {
-            source: e,
-            message: message.to_string(),
-        })
-    }
-}
-
-impl<T> IntoResponse<T> for Result<T, RepositoryError> {
-    fn into_response(self, message: &str) -> Response<T> {
-        self.map_err(|e| SyncGithubError::RepositoryError {
-            source: e,
-            message: message.to_string(),
-        })
-    }
-}
-
-impl<T> IntoResponse<T> for Option<T> {
-    fn into_response(self, message: &str) -> Response<T> {
-        self.ok_or_else(|| SyncGithubError::Option {
-            message: message.to_string(),
-        })
-    }
 }
 
 pub async fn serve(

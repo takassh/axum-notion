@@ -2,7 +2,7 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Serialize;
 use toml::{map::Map, Value};
 
-use crate::{IntoResponse, SyncGithubError};
+use crate::{response::IntoResponse, SyncGithubError};
 
 #[derive(Clone, Debug)]
 pub struct Client {

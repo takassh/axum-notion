@@ -4,6 +4,8 @@ use migration::Migrator;
 use migration::MigratorTrait;
 use page::PageRepository;
 use post::PostRepository;
+use response::IntoResponse;
+use response::Response;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 
 mod active_models;
@@ -11,14 +13,7 @@ pub mod block;
 pub mod event;
 pub mod page;
 pub mod post;
-
-#[derive(Clone, Debug)]
-pub struct Repository {
-    pub feed: PostRepository,
-    pub page: PageRepository,
-    pub block: BlockRepository,
-    pub event: EventRepository,
-}
+mod response;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RepositoryError {
@@ -36,19 +31,12 @@ pub enum RepositoryError {
     Unimplemented,
 }
 
-type Response<T> = Result<T, RepositoryError>;
-
-pub trait IntoResponse<T> {
-    fn into_response(self, message: &str) -> Response<T>;
-}
-
-impl<T> IntoResponse<T> for Result<T, sea_orm::DbErr> {
-    fn into_response(self, message: &str) -> Response<T> {
-        self.map_err(|e| RepositoryError::InSeaOrmDbErr {
-            message: message.to_string(),
-            source: e,
-        })
-    }
+#[derive(Clone, Debug)]
+pub struct Repository {
+    pub feed: PostRepository,
+    pub page: PageRepository,
+    pub block: BlockRepository,
+    pub event: EventRepository,
 }
 
 pub async fn init_repository(db_url: &str) -> Response<Repository> {
