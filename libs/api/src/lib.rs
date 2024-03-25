@@ -1,12 +1,7 @@
-use std::fs;
-
-use axum::{http::StatusCode, response::IntoResponse, routing::get, Router};
-use repository::{init_repository, RepositoryError};
-use serde_json::Value;
+use axum::{routing::get, Router};
+use repository::init_repository;
 use tower_http::cors::CorsLayer;
-use tracing::{error, info};
-
-use crate::util::workspace_dir;
+use tracing::info;
 
 pub mod block;
 pub mod event;
@@ -14,51 +9,20 @@ pub mod feed;
 pub mod healthz;
 pub mod not_found;
 pub mod page;
+mod response;
 mod util;
 
-#[derive(Debug, thiserror::Error)]
 pub enum ApiError {
-    #[error("{:?}", m)]
-    InternalServerError { m: String },
+    ClientError(String),
+    ServerError(String),
 }
 
-impl IntoResponse for ApiError {
-    fn into_response(self) -> axum::response::Response {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("{}", self)).into_response()
-    }
-}
-
-type ApiResponse<T> = Result<T, ApiError>;
-
-pub trait IntoApiResponse<T> {
-    fn into_response(self, c: &str) -> ApiResponse<T>;
-}
-
-impl<T> IntoApiResponse<T> for Result<T, RepositoryError> {
-    fn into_response(self, c: &str) -> ApiResponse<T> {
-        self.map_err(|e| {
-            error!("{:?}", e);
-            let errors = fs::read_to_string(
-                workspace_dir().join("libs/api/src/error.json"),
-            )
-            .unwrap();
-            let parsed: Value = serde_json::from_str(&errors).unwrap();
-            let errors = parsed.as_object().unwrap().clone();
-            ApiError::InternalServerError {
-                m: errors[c].as_str().unwrap().to_string(),
-            }
-        })
-    }
-}
-
-pub async fn serve(conn_string: &str) -> ApiResponse<Router> {
+pub async fn serve(conn_string: &str) -> anyhow::Result<Router> {
     info!("Start API Serving");
 
     let origins = ["http://localhost:3000".parse().unwrap()];
 
-    let repository = init_repository(conn_string)
-        .await
-        .into_response("500-001")?;
+    let repository = init_repository(conn_string).await?;
 
     // pages
     let page_router = Router::new()

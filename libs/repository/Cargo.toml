@@ -9,7 +9,6 @@ edition = "2021"
 entity = { path = "../entity" }
 migration = { path = "./migration" }
 
-thiserror = "1.0.57"
 sea-orm = { version = "^0.12.0", features = [
     "sqlx-postgres",
     "runtime-tokio-native-tls",
@@ -17,3 +16,4 @@ sea-orm = { version = "^0.12.0", features = [
 ] }
 chrono = "0.4.34"
 log = "0.4.21"
+anyhow = "1.0.81"

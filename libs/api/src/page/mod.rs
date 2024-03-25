@@ -7,7 +7,7 @@ use repository::Repository;
 mod request;
 pub mod response;
 
-use crate::{ApiResponse, IntoApiResponse};
+use crate::response::{ApiResponse, IntoApiResponse};
 
 use self::response::{GetPageResponse, GetPagesResponse, Page};
 

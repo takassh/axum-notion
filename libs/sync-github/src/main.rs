@@ -1,9 +1,10 @@
+use anyhow::Context as _;
 use std::fs::OpenOptions;
-use sync_github::{serve, util::workspace_dir, SyncGithubError};
+use sync_github::{serve, util::workspace_dir};
 use toml::{map::Map, Value};
 
 #[tokio::main]
-async fn main() -> Result<(), SyncGithubError> {
+async fn main() -> anyhow::Result<()> {
     let out_file = OpenOptions::new()
         .append(true)
         .create(true)
@@ -28,13 +29,11 @@ async fn main() -> Result<(), SyncGithubError> {
     return Ok(());
 }
 
-fn load_env() -> Result<Map<String, Value>, SyncGithubError> {
+fn load_env() -> anyhow::Result<Map<String, Value>> {
     let workspace_dir = workspace_dir();
     let secrets = std::fs::read_to_string(workspace_dir.join("Secrets.toml"))
-        .expect("failed to read Secrets.toml");
+        .context("failed to read Secrets.toml")?;
 
-    let secrets = toml::from_str::<Map<String, Value>>(&secrets)
-        .expect("failed to parse Secrets.toml");
-
-    Ok(secrets)
+    toml::from_str::<Map<String, Value>>(&secrets)
+        .context("failed to parse Secrets.toml")
 }

@@ -1,7 +1,6 @@
 use sea_orm::{DatabaseConnection, EntityTrait};
 
 use crate::active_models::{prelude::*, *};
-use crate::{IntoResponse, Response};
 use entity::prelude::*;
 
 #[derive(Clone, Debug)]
@@ -33,9 +32,8 @@ impl From<post::Model> for PostEntity {
 }
 
 impl PostRepository {
-    pub async fn find_all(&self) -> Response<Vec<PostEntity>> {
-        let posts =
-            Post::find().all(&self.db).await.into_response("find all")?;
+    pub async fn find_all(&self) -> anyhow::Result<Vec<PostEntity>> {
+        let posts = Post::find().all(&self.db).await?;
 
         Ok(posts.into_iter().map(PostEntity::from).collect())
     }

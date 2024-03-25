@@ -1,5 +1,5 @@
 use self::response::Event;
-use crate::{State, SyncGithubError};
+use crate::State;
 use entity::prelude::*;
 use std::{sync::Arc, time::Duration};
 use tokio::{
@@ -12,7 +12,7 @@ mod response;
 
 pub async fn spawn_service_to_get_events(
     state: Arc<State>,
-) -> Result<(), SyncGithubError> {
+) -> anyhow::Result<()> {
     let (tx, rx) = mpsc::channel(100);
 
     let _ = sender(state.clone(), tx);
@@ -22,10 +22,7 @@ pub async fn spawn_service_to_get_events(
 }
 
 #[tracing::instrument]
-fn sender(
-    state: Arc<State>,
-    tx: Sender<Vec<Event>>,
-) -> Result<(), SyncGithubError> {
+fn sender(state: Arc<State>, tx: Sender<Vec<Event>>) -> anyhow::Result<()> {
     tokio::spawn(async move {
         let mut page = 1;
         loop {
@@ -40,7 +37,7 @@ fn sender(
                 .await;
 
             let Ok((text, headers)) = result else {
-                error!("get: {}", result.err().unwrap());
+                error!("get: {}", result.unwrap_err());
                 continue;
             };
 
@@ -73,7 +70,7 @@ fn sender(
 fn receiver(
     state: Arc<State>,
     mut rx: Receiver<Vec<Event>>,
-) -> Result<(), SyncGithubError> {
+) -> anyhow::Result<()> {
     tokio::spawn(async move {
         loop {
             let Some(events) = rx.recv().await else {

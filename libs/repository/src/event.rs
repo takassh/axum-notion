@@ -7,7 +7,6 @@ use sea_orm::{
 use sea_orm::{ColumnTrait, QueryFilter};
 
 use crate::active_models::{prelude::*, *};
-use crate::{IntoResponse, Response};
 use entity::prelude::*;
 
 use self::event::Column;
@@ -49,11 +48,8 @@ impl From<EventEntity> for event::ActiveModel {
 }
 
 impl EventRepository {
-    pub async fn find_all(&self) -> Response<Vec<EventEntity>> {
-        let events = Event::find()
-            .all(&self.db)
-            .await
-            .into_response("find all")?;
+    pub async fn find_all(&self) -> anyhow::Result<Vec<EventEntity>> {
+        let events = Event::find().all(&self.db).await?;
 
         Ok(events.into_iter().map(EventEntity::from).collect())
     }
@@ -61,17 +57,16 @@ impl EventRepository {
     pub async fn find_by_event_id(
         &self,
         id: String,
-    ) -> Response<Option<EventEntity>> {
+    ) -> anyhow::Result<Option<EventEntity>> {
         let event = event::Entity::find()
             .filter(Column::GithubEventId.eq(id))
             .one(&self.db)
-            .await
-            .into_response("find by event id")?;
+            .await?;
 
         Ok(event.map(EventEntity::from))
     }
 
-    pub async fn save(&self, event: EventEntity) -> Response<()> {
+    pub async fn save(&self, event: EventEntity) -> anyhow::Result<()> {
         let mut active_model = event::ActiveModel::from(event);
         active_model.updated_at =
             ActiveValue::set(Some(Utc::now().naive_utc()));
@@ -83,8 +78,7 @@ impl EventRepository {
                     .to_owned(),
             )
             .exec(&self.db)
-            .await
-            .into_response("save")?;
+            .await?;
 
         Ok(())
     }

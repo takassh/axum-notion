@@ -2,7 +2,8 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Serialize;
 use toml::{map::Map, Value};
 
-use crate::{response::IntoResponse, SyncGithubError};
+use anyhow::anyhow;
+use anyhow::Context as _;
 
 #[derive(Clone, Debug)]
 pub struct Client {
@@ -14,12 +15,12 @@ impl Client {
     pub fn new(
         token: String,
         config: &Map<String, Value>,
-    ) -> Result<Self, SyncGithubError> {
+    ) -> anyhow::Result<Self> {
         let base_url = config
             .get("github")
-            .into_response("failed to load github config")?
+            .context("failed to load github config")?
             .get("base_url")
-            .into_response("failed to load base_url config")?;
+            .context("failed to load base_url config")?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -50,7 +51,7 @@ impl Client {
         &self,
         path: &str,
         query: &T,
-    ) -> Result<(String, HeaderMap), SyncGithubError> {
+    ) -> anyhow::Result<(String, HeaderMap)> {
         let client = reqwest::Client::new();
 
         let response = client
@@ -58,19 +59,15 @@ impl Client {
             .headers(self.headers.clone())
             .query(query)
             .send()
-            .await
-            .into_response("failed to send")?;
+            .await?;
 
-        let status = response.status();
+        let status_code = response.status();
         let headers = response.headers().clone();
 
-        let text = response.text().await.into_response("failed to get text")?;
+        let text = response.text().await?;
 
-        if !status.is_success() {
-            return Err(SyncGithubError::FailedStatusCode {
-                status_code: status,
-                message: text,
-            });
+        if !status_code.is_success() {
+            return Err(anyhow!("staus code:{}", status_code));
         }
 
         Ok((text, headers))

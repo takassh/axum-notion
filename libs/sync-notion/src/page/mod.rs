@@ -1,4 +1,4 @@
-use crate::{State, SyncNotionError};
+use crate::State;
 use notion_client::{
     endpoints::databases::query::request::{
         QueryDatabaseRequest, Sort, SortDirection, Timestamp,
@@ -16,7 +16,7 @@ use tracing::{error, info};
 
 pub async fn spawn_service_to_get_pages(
     state: Arc<State>,
-) -> Result<(), SyncNotionError> {
+) -> anyhow::Result<()> {
     let (tx, rx) = mpsc::channel(100);
 
     let _ = sender(state.clone(), tx);
@@ -26,10 +26,7 @@ pub async fn spawn_service_to_get_pages(
 }
 
 #[tracing::instrument]
-fn sender(
-    state: Arc<State>,
-    tx: Sender<Vec<Page>>,
-) -> Result<(), SyncNotionError> {
+fn sender(state: Arc<State>, tx: Sender<Vec<Page>>) -> anyhow::Result<()> {
     tokio::spawn(async move {
         loop {
             sleep(Duration::from_secs(state.pause_secs)).await;
@@ -92,7 +89,7 @@ async fn scan_all_pages(state: Arc<State>) -> Vec<Page> {
 fn receiver(
     state: Arc<State>,
     mut rx: Receiver<Vec<Page>>,
-) -> Result<(), SyncNotionError> {
+) -> anyhow::Result<()> {
     tokio::spawn(async move {
         loop {
             let Some(pages) = rx.recv().await else {

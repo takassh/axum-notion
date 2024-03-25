@@ -7,7 +7,6 @@ use sea_orm::{
 use sea_orm::QueryFilter;
 
 use crate::active_models::{prelude::*, *};
-use crate::{IntoResponse, Response};
 use chrono::TimeZone;
 use entity::prelude::*;
 
@@ -48,28 +47,24 @@ impl From<BlockEntity> for block::ActiveModel {
 }
 
 impl BlockRepository {
-    pub async fn find_all(&self) -> Response<Vec<BlockEntity>> {
-        let blocks = Block::find()
-            .all(&self.db)
-            .await
-            .into_response("find all")?;
+    pub async fn find_all(&self) -> anyhow::Result<Vec<BlockEntity>> {
+        let blocks = Block::find().all(&self.db).await?;
         Ok(blocks.into_iter().map(BlockEntity::from).collect())
     }
 
     pub async fn find_by_notion_page_id(
         &self,
         id: String,
-    ) -> Response<Option<BlockEntity>> {
+    ) -> anyhow::Result<Option<BlockEntity>> {
         let block = block::Entity::find()
             .filter(Column::NotionPageId.eq(id))
             .one(&self.db)
-            .await
-            .into_response("find by notion page id")?;
+            .await?;
 
         Ok(block.map(BlockEntity::from))
     }
 
-    pub async fn save(&self, block: BlockEntity) -> Response<()> {
+    pub async fn save(&self, block: BlockEntity) -> anyhow::Result<()> {
         let mut block = block::ActiveModel::from(block);
         block.updated_at = Some(Utc::now().naive_utc()).into_active_value();
 
@@ -80,8 +75,7 @@ impl BlockRepository {
                     .to_owned(),
             )
             .exec(&self.db)
-            .await
-            .into_response("save")?;
+            .await?;
 
         Ok(())
     }

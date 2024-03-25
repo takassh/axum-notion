@@ -6,7 +6,7 @@ use repository::Repository;
 mod request;
 mod response;
 
-use crate::{ApiResponse, IntoApiResponse};
+use crate::response::{ApiResponse, IntoApiResponse};
 
 use self::response::{Block, GetBlockResponse, GetBlocksResponse};
 

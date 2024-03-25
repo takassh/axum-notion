@@ -1,4 +1,4 @@
-use crate::{State, SyncNotionError};
+use crate::State;
 use async_recursion::async_recursion;
 use entity::prelude::*;
 use notion_client::objects::block::{Block, BlockType};
@@ -16,7 +16,7 @@ struct Message {
 
 pub async fn spawn_service_to_get_blocks(
     state: Arc<State>,
-) -> Result<(), SyncNotionError> {
+) -> anyhow::Result<()> {
     let (tx, rx) = mpsc::channel(100);
 
     let _ = sender(state.clone(), tx);
@@ -26,10 +26,7 @@ pub async fn spawn_service_to_get_blocks(
 }
 
 #[tracing::instrument]
-fn sender(
-    state: Arc<State>,
-    tx: Sender<Message>,
-) -> Result<(), SyncNotionError> {
+fn sender(state: Arc<State>, tx: Sender<Message>) -> anyhow::Result<()> {
     tokio::spawn(async move {
         loop {
             let pages = state.repository.page.find_all().await;
@@ -162,7 +159,7 @@ async fn get_children(state: Arc<State>, parent_block_id: &str) -> Vec<Block> {
 fn receiver(
     state: Arc<State>,
     mut rx: Receiver<Message>,
-) -> Result<(), SyncNotionError> {
+) -> anyhow::Result<()> {
     tokio::spawn(async move {
         loop {
             let Some(message) = rx.recv().await else {

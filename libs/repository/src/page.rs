@@ -6,9 +6,6 @@ use sea_orm::{
 
 use sea_orm::ColumnTrait;
 
-use crate::IntoResponse;
-use crate::Response;
-
 use crate::active_models::{prelude::*, *};
 use entity::prelude::*;
 
@@ -50,24 +47,25 @@ impl From<PageEntity> for page::ActiveModel {
 }
 
 impl PageRepository {
-    pub async fn find_all(&self) -> Response<Vec<PageEntity>> {
-        let pages =
-            Page::find().all(&self.db).await.into_response("find all")?;
+    pub async fn find_all(&self) -> anyhow::Result<Vec<PageEntity>> {
+        let pages = Page::find().all(&self.db).await?;
 
         Ok(pages.into_iter().map(PageEntity::from).collect())
     }
 
-    pub async fn find_by_id(&self, id: String) -> Response<Option<PageEntity>> {
+    pub async fn find_by_id(
+        &self,
+        id: String,
+    ) -> anyhow::Result<Option<PageEntity>> {
         let page = page::Entity::find()
             .filter(Column::NotionPageId.eq(id))
             .one(&self.db)
-            .await
-            .into_response("find by id")?;
+            .await?;
 
         Ok(page.map(PageEntity::from))
     }
 
-    pub async fn save(&self, page: PageEntity) -> Response<()> {
+    pub async fn save(&self, page: PageEntity) -> anyhow::Result<()> {
         let mut page = page::ActiveModel::from(page);
         page.updated_at = ActiveValue::set(Some(Utc::now().naive_utc()));
 
@@ -78,8 +76,7 @@ impl PageRepository {
                     .to_owned(),
             )
             .exec(&self.db)
-            .await
-            .into_response("save")?;
+            .await?;
 
         Ok(())
     }

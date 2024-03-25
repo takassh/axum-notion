@@ -2,17 +2,14 @@ use std::sync::Arc;
 
 mod client;
 mod events;
-mod response;
 pub mod util;
 
+use anyhow::Context as _;
 use client::Client;
-use repository::{init_repository, Repository, RepositoryError};
-use reqwest::StatusCode;
+use repository::{init_repository, Repository};
 use toml::{map::Map, Value};
 use tracing::info;
 use util::workspace_dir;
-
-use crate::response::IntoResponse;
 
 #[derive(Clone, Debug)]
 pub struct State {
@@ -37,53 +34,15 @@ impl State {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum SyncGithubError {
-    #[error("Failed status code({}): {}", status_code, message)]
-    FailedStatusCode {
-        status_code: StatusCode,
-        message: String,
-    },
-
-    #[error("in std from I/O operations: {}, {}", message, source)]
-    StdIoError {
-        source: std::io::Error,
-        message: String,
-    },
-
-    #[error("in toml from deserializing a type: {}, {}", message, source)]
-    TomlDeError {
-        source: toml::de::Error,
-        message: String,
-    },
-
-    #[error("in reqwest from processing a Request: {}, {}", message, source)]
-    ReqwestError {
-        source: reqwest::Error,
-        message: String,
-    },
-
-    #[error("in repository: {}, {}", message, source)]
-    RepositoryError {
-        source: RepositoryError,
-        message: String,
-    },
-
-    #[error("option: {}", message)]
-    Option { message: String },
-}
-
 pub async fn serve(
     conn_string: &str,
     github_token: &str,
-) -> Result<(), SyncGithubError> {
+) -> anyhow::Result<()> {
     info!("Start Github Sync");
 
     let config = load_config()?;
 
-    let repository = init_repository(conn_string)
-        .await
-        .into_response("failed to init repository")?;
+    let repository = init_repository(conn_string).await?;
 
     let client = Client::new(github_token.to_string(), &config)?;
 
@@ -96,35 +55,31 @@ pub async fn serve(
     Ok(())
 }
 
-fn load_config() -> Result<Map<String, Value>, SyncGithubError> {
+fn load_config() -> anyhow::Result<Map<String, Value>> {
     let workspace_dir = workspace_dir();
-    let config = std::fs::read_to_string(workspace_dir.join("Config.toml"))
-        .into_response("failed to read Config.toml")?;
+    let config = std::fs::read_to_string(workspace_dir.join("Config.toml"))?;
 
-    let config = toml::from_str::<Map<String, Value>>(&config)
-        .into_response("failed to parse Config.toml")?;
+    let config = toml::from_str::<Map<String, Value>>(&config)?;
 
     Ok(config)
 }
 
-pub fn init_config(
-    config: &Map<String, Value>,
-) -> Result<Config, SyncGithubError> {
+pub fn init_config(config: &Map<String, Value>) -> anyhow::Result<Config> {
     let github = config
         .get("github")
-        .into_response("failed to load github config")?;
+        .context("failed to get github config")?;
 
     let pause_secs = github
         .get("pause_secs")
-        .into_response("failed to load pause_secs config")?
+        .context("failed to load pause_secs config")?
         .as_integer()
-        .into_response("failed to parse pause_secs config")?;
+        .context("failed to parse pause_secs config")?;
 
     let username = github
         .get("username")
-        .into_response("failed to load username config")?
+        .context("failed to load username config")?
         .as_str()
-        .into_response("failed to parse username config")?
+        .context("failed to parse username config")?
         .to_string();
 
     Ok(Config {
