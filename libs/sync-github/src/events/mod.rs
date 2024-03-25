@@ -93,6 +93,7 @@ fn receiver(
 
                 let model = PostEntity {
                     id: event.id,
+                    contents: None,
                     category: Category::Event,
                     created_at: event.created_at,
                 };

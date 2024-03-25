@@ -2633,6 +2633,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "entity",
+ "itertools 0.12.1",
  "log",
  "migration",
  "sea-orm",

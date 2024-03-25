@@ -112,6 +112,7 @@ fn receiver(
 
                 let model = PostEntity {
                     id: page.id,
+                    contents: None,
                     category: Category::Page,
                     created_at: page.created_time,
                 };

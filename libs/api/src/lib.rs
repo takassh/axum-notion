@@ -5,10 +5,10 @@ use tracing::info;
 
 pub mod block;
 pub mod event;
-pub mod feed;
 pub mod healthz;
 pub mod not_found;
 pub mod page;
+pub mod post;
 mod response;
 mod util;
 
@@ -45,11 +45,18 @@ pub async fn serve(conn_string: &str) -> anyhow::Result<Router> {
         .fallback(not_found::get_404)
         .with_state(repository.clone());
 
+    // posts
+    let post_router = Router::new()
+        .route("/", get(post::get_posts))
+        .fallback(not_found::get_404)
+        .with_state(repository.clone());
+
     let router = Router::new()
         .route("/healthz", get(healthz::get_health))
         .nest("/pages", page_router)
         .nest("/blocks", block_router)
         .nest("/events", event_router)
+        .nest("/posts", post_router)
         .layer(CorsLayer::new().allow_origin(origins))
         .fallback(not_found::get_404);
 

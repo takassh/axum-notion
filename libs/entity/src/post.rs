@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct Post {
     pub id: String,
     pub category: Category,
+    pub contents: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 

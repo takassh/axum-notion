@@ -18,7 +18,7 @@ pub async fn get_posts(
             .into_iter()
             .map(|post| Post {
                 category: post.category,
-                contents: "".to_string(),
+                contents: post.contents.unwrap_or_default(),
             })
             .collect(),
     });
