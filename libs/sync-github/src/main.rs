@@ -1,5 +1,5 @@
 use std::fs::OpenOptions;
-use sync_github::{serve, util::workspace_dir, SyncGithubError};
+use sync_github::{serve, util::workspace_dir, IntoResponse, SyncGithubError};
 use toml::{map::Map, Value};
 
 #[tokio::main]
@@ -31,16 +31,10 @@ async fn main() -> Result<(), SyncGithubError> {
 fn load_env() -> Result<Map<String, Value>, SyncGithubError> {
     let workspace_dir = workspace_dir();
     let secrets = std::fs::read_to_string(workspace_dir.join("Secrets.toml"))
-        .map_err(|e| SyncGithubError::FailedToInitService {
-        message: format!("failed to read Secrets.toml: {}", e),
-    })?;
+        .into_response("failed to read Secrets.toml")?;
 
-    let secrets =
-        toml::from_str::<Map<String, Value>>(&secrets).map_err(|e| {
-            SyncGithubError::FailedToInitService {
-                message: format!("failed to parse Secrets.toml: {}", e),
-            }
-        })?;
+    let secrets = toml::from_str::<Map<String, Value>>(&secrets)
+        .into_response("failed to parse Secrets.toml")?;
 
     Ok(secrets)
 }

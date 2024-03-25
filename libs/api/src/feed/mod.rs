@@ -6,18 +6,19 @@ pub mod response;
 
 use crate::{ApiResponse, IntoApiResponse};
 
-use self::response::{Feed, GetFeedsResponse};
+use self::response::{GetPostsResponse, Post};
 
 pub async fn get_feeds(
     State(repo): State<Repository>,
-) -> ApiResponse<Json<GetFeedsResponse>> {
+) -> ApiResponse<Json<GetPostsResponse>> {
     let feeds = repo.feed.find_all().await.into_response("502-007")?;
 
-    let response = Json(GetFeedsResponse {
-        feeds: feeds
+    let response = Json(GetPostsResponse {
+        posts: feeds
             .into_iter()
-            .map(|a| Feed {
-                contents: a.contents,
+            .map(|post| Post {
+                category: post.category,
+                contents: "".to_string(),
             })
             .collect(),
     });

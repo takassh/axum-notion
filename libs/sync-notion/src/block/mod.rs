@@ -1,6 +1,6 @@
 use crate::{State, SyncNotionError};
 use async_recursion::async_recursion;
-use entities::block;
+use entity::prelude::*;
 use notion_client::objects::block::{Block, BlockType};
 use std::{sync::Arc, time::Duration};
 use tokio::{
@@ -32,12 +32,10 @@ fn sender(
 ) -> Result<(), SyncNotionError> {
     tokio::spawn(async move {
         loop {
-            let pages = state.repository.page.find_all().await.map_err(|e| {
-                SyncNotionError::FailedToCallRepository { source: e }
-            });
+            let pages = state.repository.page.find_all().await;
 
             if let Err(e) = &pages {
-                error!("find all: {}", e);
+                error!("failed to find all: {}", e);
             }
             let pages = pages.unwrap();
 
@@ -173,7 +171,7 @@ fn receiver(
 
             let parent_id = &message.parent_id;
             let json = serde_json::to_string_pretty(&message.blocks).unwrap();
-            let model = block::Model {
+            let model = BlockEntity {
                 notion_page_id: parent_id.to_string(),
                 contents: json,
                 ..Default::default()

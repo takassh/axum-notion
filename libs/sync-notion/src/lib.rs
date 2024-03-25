@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use notion_client::{endpoints::Client, NotionClientError};
-use repositories::{init_repository, RepositoriesError, Repository};
+use repositories::{init_repository, Repository, RepositoryError};
 use tokio::join;
 use toml::{map::Map, Value};
 use tracing::info;
@@ -36,17 +36,82 @@ impl State {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SyncNotionError {
-    #[error("Failed to init repository: {}", source)]
-    FailedToInitRepository { source: RepositoriesError },
+    #[error("in std from I/O operations: {}, {}", message, source)]
+    StdIoError {
+        source: std::io::Error,
+        message: String,
+    },
 
-    #[error("Failed to init notion client: {}", source)]
-    FailedToInitNotionClient { source: NotionClientError },
+    #[error("in toml from deserializing a type: {}, {}", message, source)]
+    TomlDeError {
+        source: toml::de::Error,
+        message: String,
+    },
 
-    #[error("Failed to call repository: {}", source)]
-    FailedToCallRepository { source: RepositoriesError },
+    #[error("in repository: {}, {}", message, source)]
+    RepositoryError {
+        source: RepositoryError,
+        message: String,
+    },
 
-    #[error("Failed to init service: {}", message)]
-    FailedToInitService { message: String },
+    #[error("in notion: {}, {}", message, source)]
+    NotionClientError {
+        source: Box<NotionClientError>,
+        message: String,
+    },
+
+    #[error("option: {}", message)]
+    Option { message: String },
+}
+
+type Response<T> = Result<T, SyncNotionError>;
+
+pub trait IntoResponse<T> {
+    fn into_response(self, message: &str) -> Response<T>;
+}
+
+impl<T> IntoResponse<T> for Result<T, std::io::Error> {
+    fn into_response(self, message: &str) -> Response<T> {
+        self.map_err(|e| SyncNotionError::StdIoError {
+            source: e,
+            message: message.to_string(),
+        })
+    }
+}
+
+impl<T> IntoResponse<T> for Result<T, toml::de::Error> {
+    fn into_response(self, message: &str) -> Response<T> {
+        self.map_err(|e| SyncNotionError::TomlDeError {
+            source: e,
+            message: message.to_string(),
+        })
+    }
+}
+
+impl<T> IntoResponse<T> for Result<T, RepositoryError> {
+    fn into_response(self, message: &str) -> Response<T> {
+        self.map_err(|e| SyncNotionError::RepositoryError {
+            source: e,
+            message: message.to_string(),
+        })
+    }
+}
+
+impl<T> IntoResponse<T> for Result<T, NotionClientError> {
+    fn into_response(self, message: &str) -> Response<T> {
+        self.map_err(|e| SyncNotionError::NotionClientError {
+            source: Box::new(e),
+            message: message.to_string(),
+        })
+    }
+}
+
+impl<T> IntoResponse<T> for Option<T> {
+    fn into_response(self, message: &str) -> Response<T> {
+        self.ok_or_else(|| SyncNotionError::Option {
+            message: message.to_string(),
+        })
+    }
 }
 
 pub async fn serve(
@@ -58,26 +123,20 @@ pub async fn serve(
 
     let repository = init_repository(conn_string)
         .await
-        .map_err(|e| SyncNotionError::FailedToInitRepository { source: e })?;
+        .into_response("failed to init repository")?;
 
     let client = Client::new(notion_token)
-        .map_err(|e| SyncNotionError::FailedToInitNotionClient { source: e })?;
+        .into_response("failed to init notion client")?;
 
     let config = load_config()?;
 
     let pause_secs = config
         .get("notion")
-        .ok_or_else(|| SyncNotionError::FailedToInitService {
-            message: "failed to load github config".to_string(),
-        })?
+        .into_response("failed to load github config")?
         .get("pause_secs")
-        .ok_or_else(|| SyncNotionError::FailedToInitService {
-            message: "failed to load pause_secs config".to_string(),
-        })?
+        .into_response("failed to load pause_secs config")?
         .as_integer()
-        .ok_or_else(|| SyncNotionError::FailedToInitService {
-            message: "failed to parse pause_secs config".to_string(),
-        })?;
+        .into_response("failed to parse pause_secs config")?;
 
     let state = Arc::new(State::new(
         repository,
@@ -100,16 +159,10 @@ pub async fn serve(
 fn load_config() -> Result<Map<String, Value>, SyncNotionError> {
     let workspace_dir = workspace_dir();
     let config = std::fs::read_to_string(workspace_dir.join("Config.toml"))
-        .map_err(|e| SyncNotionError::FailedToInitService {
-            message: format!("failed to read Config.toml: {}", e),
-        })?;
+        .into_response("failed to read Config.toml")?;
 
-    let config =
-        toml::from_str::<Map<String, Value>>(&config).map_err(|e| {
-            SyncNotionError::FailedToInitService {
-                message: format!("failed to parse Config.toml: {}", e),
-            }
-        })?;
+    let config = toml::from_str::<Map<String, Value>>(&config)
+        .into_response("failed to parse Config.toml")?;
 
     Ok(config)
 }

@@ -32,7 +32,11 @@ pub async fn get_event(
     State(repo): State<Repository>,
     Path(id): Path<String>,
 ) -> ApiResponse<Json<GetEventResponse>> {
-    let event = repo.event.find_by_event_id(id).await.into_response("502-006")?;
+    let event = repo
+        .event
+        .find_by_event_id(id)
+        .await
+        .into_response("502-006")?;
 
     let Some(event) = event else {
         return Ok(Json(GetEventResponse { event: None }));

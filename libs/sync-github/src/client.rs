@@ -2,7 +2,7 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Serialize;
 use toml::{map::Map, Value};
 
-use crate::SyncGithubError;
+use crate::{IntoResponse, SyncGithubError};
 
 #[derive(Clone, Debug)]
 pub struct Client {
@@ -17,13 +17,9 @@ impl Client {
     ) -> Result<Self, SyncGithubError> {
         let base_url = config
             .get("github")
-            .ok_or_else(|| SyncGithubError::FailedToInitGithubClient {
-                message: "failed to load github config".to_string(),
-            })?
+            .into_response("failed to load github config")?
             .get("base_url")
-            .ok_or_else(|| SyncGithubError::FailedToInitGithubClient {
-                message: "failed to load base_url config".to_string(),
-            })?;
+            .into_response("failed to load base_url config")?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -63,19 +59,16 @@ impl Client {
             .query(query)
             .send()
             .await
-            .map_err(|e| SyncGithubError::FailedToCallAPI { source: e })?;
+            .into_response("failed to send")?;
 
         let status = response.status();
         let headers = response.headers().clone();
 
-        let text = response
-            .text()
-            .await
-            .map_err(|e| SyncGithubError::FailedToGetResponse { source: e })?;
+        let text = response.text().await.into_response("failed to get text")?;
 
         if !status.is_success() {
             return Err(SyncGithubError::FailedStatusCode {
-                code: status,
+                status_code: status,
                 message: text,
             });
         }

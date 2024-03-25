@@ -1,6 +1,6 @@
 use self::response::Event;
 use crate::{State, SyncGithubError};
-use entities::event;
+use entity::prelude::*;
 use std::{sync::Arc, time::Duration};
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
@@ -82,16 +82,16 @@ fn receiver(
 
             for event in events {
                 let json = serde_json::to_string_pretty(&event).unwrap();
-                let model = event::Model {
-                    event_id: event.id,
+                let model = EventEntity {
+                    github_event_id: event.id,
                     contents: json,
-                    created_at: event.created_at.naive_utc(),
+                    created_at: event.created_at,
                     ..Default::default()
                 };
 
                 let result = state.repository.event.save(model).await;
                 if let Err(e) = result {
-                    error!("save: {}", e);
+                    error!("receiver: {}", e);
                 }
             }
         }

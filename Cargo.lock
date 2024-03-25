@@ -136,7 +136,7 @@ name = "api"
 version = "0.1.0"
 dependencies = [
  "axum 0.7.4",
- "entities",
+ "entity",
  "repositories",
  "serde",
  "serde_json",
@@ -1027,14 +1027,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "entities"
+name = "entity"
 version = "0.1.0"
 dependencies = [
- "async-std",
- "log",
- "sea-orm",
- "sea-orm-migration",
- "thiserror",
+ "chrono",
+ "serde",
+ "strum 0.26.2",
 ]
 
 [[package]]
@@ -1886,6 +1884,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "523dc4f511e55ab87b694dc30d0f820d60906ef06413f93d4d7a1385599cc149"
 
 [[package]]
+name = "migration"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "sea-orm-migration",
+]
+
+[[package]]
 name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2625,7 +2631,9 @@ name = "repositories"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "entities",
+ "entity",
+ "log",
+ "migration",
  "sea-orm",
  "thiserror",
 ]
@@ -3805,7 +3813,7 @@ name = "sync-github"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "entities",
+ "entity",
  "repositories",
  "reqwest 0.12.0",
  "serde",
@@ -3823,7 +3831,7 @@ name = "sync-notion"
 version = "0.1.0"
 dependencies = [
  "async-recursion",
- "entities",
+ "entity",
  "notion-client",
  "repositories",
  "serde_json",

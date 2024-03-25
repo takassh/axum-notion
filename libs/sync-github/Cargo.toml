@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-entities = { path = "../entities" }
+entity = { path = "../entity" }
 repositories = { path = "../repositories" }
 thiserror = "1.0.58"
 tracing = "0.1.40"

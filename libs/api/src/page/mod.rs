@@ -14,11 +14,7 @@ use self::response::{GetPageResponse, GetPagesResponse, Page};
 pub async fn get_pages(
     State(repo): State<Repository>,
 ) -> ApiResponse<Json<GetPagesResponse>> {
-    let pages = repo
-        .page
-        .find_all()
-        .await
-        .into_response("502-001")?;
+    let pages = repo.page.find_all().await.into_response("502-001")?;
 
     let response = Json(GetPagesResponse {
         pages: pages

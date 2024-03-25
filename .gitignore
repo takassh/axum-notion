@@ -17,4 +17,6 @@ Cargo.lock
 .shuttle-storage
 Secrets*.toml
 log.txt
+.env
+
 

@@ -1,5 +1,4 @@
 use crate::{State, SyncNotionError};
-use entities::page;
 use notion_client::{
     endpoints::databases::query::request::{
         QueryDatabaseRequest, Sort, SortDirection, Timestamp,
@@ -7,6 +6,7 @@ use notion_client::{
     objects::page::Page,
 };
 
+use entity::prelude::*;
 use std::{sync::Arc, time::Duration};
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
@@ -101,10 +101,10 @@ fn receiver(
 
             for page in pages {
                 let json = serde_json::to_string_pretty(&page).unwrap();
-                let model = page::Model {
+                let model = PageEntity {
                     notion_page_id: page.id.clone(),
                     contents: json,
-                    created_at: page.created_time.naive_utc(),
+                    created_at: page.created_time,
                     ..Default::default()
                 };
 

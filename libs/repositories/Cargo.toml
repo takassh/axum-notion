@@ -6,11 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+entity = { path = "../entity" }
+migration = { path = "./migration" }
+
 thiserror = "1.0.57"
 sea-orm = { version = "^0.12.0", features = [
     "sqlx-postgres",
     "runtime-tokio-native-tls",
     "macros",
 ] }
-entities = { path = "../entities" }
 chrono = "0.4.34"
+log = "0.4.21"

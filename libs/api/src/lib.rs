@@ -1,7 +1,7 @@
 use std::fs;
 
 use axum::{http::StatusCode, response::IntoResponse, routing::get, Router};
-use repositories::{init_repository, RepositoriesError};
+use repositories::{init_repository, RepositoryError};
 use serde_json::Value;
 use tower_http::cors::CorsLayer;
 use tracing::{error, info};
@@ -34,7 +34,7 @@ pub trait IntoApiResponse<T> {
     fn into_response(self, c: &str) -> ApiResponse<T>;
 }
 
-impl<T> IntoApiResponse<T> for Result<T, RepositoriesError> {
+impl<T> IntoApiResponse<T> for Result<T, RepositoryError> {
     fn into_response(self, c: &str) -> ApiResponse<T> {
         self.map_err(|e| {
             error!("{:?}", e);
