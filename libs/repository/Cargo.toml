@@ -17,3 +17,4 @@ sea-orm = { version = "^0.12.0", features = [
 chrono = "0.4.34"
 log = "0.4.21"
 anyhow = "1.0.81"
+strum = { version = "0.26.2" }

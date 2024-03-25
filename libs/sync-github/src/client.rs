@@ -2,7 +2,7 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Serialize;
 use toml::{map::Map, Value};
 
-use anyhow::anyhow;
+use anyhow::ensure;
 use anyhow::Context as _;
 
 #[derive(Clone, Debug)]
@@ -66,9 +66,7 @@ impl Client {
 
         let text = response.text().await?;
 
-        if !status_code.is_success() {
-            return Err(anyhow!("staus code:{}", status_code));
-        }
+        ensure!(status_code.is_success(), "status code: {}", status_code);
 
         Ok((text, headers))
     }

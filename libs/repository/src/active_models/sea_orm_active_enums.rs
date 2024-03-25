@@ -5,8 +5,8 @@ use sea_orm::entity::prelude::*;
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "category")]
 pub enum Category {
-    #[sea_orm(string_value = "Feed")]
-    Feed,
+    #[sea_orm(string_value = "Event")]
+    Event,
     #[sea_orm(string_value = "Page")]
     Page,
 }

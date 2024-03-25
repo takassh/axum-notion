@@ -54,7 +54,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum Post {
+pub enum Post {
     Table,
     Id,
     Category,
@@ -63,8 +63,8 @@ enum Post {
 
 #[derive(Iden, EnumIter)]
 pub enum Category {
-    #[iden = "Feed"]
-    Feed,
+    #[iden = "Event"]
+    Event,
     #[iden = "Page"]
     Page,
 }

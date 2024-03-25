@@ -13,6 +13,6 @@ pub struct Post {
 )]
 pub enum Category {
     #[default]
-    Feed,
+    Event,
     Page,
 }

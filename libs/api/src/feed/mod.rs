@@ -8,13 +8,13 @@ use crate::response::{ApiResponse, IntoApiResponse};
 
 use self::response::{GetPostsResponse, Post};
 
-pub async fn get_feeds(
+pub async fn get_posts(
     State(repo): State<Repository>,
 ) -> ApiResponse<Json<GetPostsResponse>> {
-    let feeds = repo.feed.find_all().await.into_response("502-007")?;
+    let posts = repo.post.find_all().await.into_response("502-007")?;
 
     let response = Json(GetPostsResponse {
-        posts: feeds
+        posts: posts
             .into_iter()
             .map(|post| Post {
                 category: post.category,

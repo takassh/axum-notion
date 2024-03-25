@@ -1,6 +1,6 @@
 use self::response::Event;
 use crate::State;
-use entity::prelude::*;
+use entity::{post::Category, prelude::*};
 use std::{sync::Arc, time::Duration};
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
@@ -80,13 +80,24 @@ fn receiver(
             for event in events {
                 let json = serde_json::to_string_pretty(&event).unwrap();
                 let model = EventEntity {
-                    github_event_id: event.id,
+                    github_event_id: event.id.clone(),
                     contents: json,
                     created_at: event.created_at,
                     ..Default::default()
                 };
 
                 let result = state.repository.event.save(model).await;
+                if let Err(e) = result {
+                    error!("receiver: {}", e);
+                }
+
+                let model = PostEntity {
+                    id: event.id,
+                    category: Category::Event,
+                    created_at: event.created_at,
+                };
+
+                let result = state.repository.post.save(model).await;
                 if let Err(e) = result {
                     error!("receiver: {}", e);
                 }

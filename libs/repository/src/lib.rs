@@ -14,7 +14,7 @@ pub mod post;
 
 #[derive(Clone, Debug)]
 pub struct Repository {
-    pub feed: PostRepository,
+    pub post: PostRepository,
     pub page: PageRepository,
     pub block: BlockRepository,
     pub event: EventRepository,
@@ -24,7 +24,7 @@ pub async fn init_repository(db_url: &str) -> anyhow::Result<Repository> {
     let db = init_db(db_url).await?;
 
     let repository = Repository {
-        feed: PostRepository::new(db.clone()),
+        post: PostRepository::new(db.clone()),
         page: PageRepository::new(db.clone()),
         block: BlockRepository::new(db.clone()),
         event: EventRepository::new(db.clone()),
@@ -40,11 +40,9 @@ async fn init_db(db_url: &str) -> anyhow::Result<DatabaseConnection> {
         .sqlx_logging(true)
         .sqlx_logging_level(log::LevelFilter::Debug);
 
-    let db = Database::connect(opt)
-        .await?;
+    let db = Database::connect(opt).await?;
 
-    Migrator::up(&db, None)
-        .await?;
+    Migrator::up(&db, None).await?;
 
     Ok(db)
 }

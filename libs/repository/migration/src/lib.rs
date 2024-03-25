@@ -4,6 +4,7 @@ mod m20240325_032714_create_event_table;
 mod m20240325_032727_create_page_table;
 mod m20240325_032732_create_post_table;
 mod m20240325_032828_create_block_table;
+mod m20240325_125942_create_index_at_post;
 
 pub struct Migrator;
 
@@ -15,6 +16,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20240325_032727_create_page_table::Migration),
             Box::new(m20240325_032732_create_post_table::Migration),
             Box::new(m20240325_032828_create_block_table::Migration),
+            Box::new(m20240325_125942_create_index_at_post::Migration),
         ]
     }
 }

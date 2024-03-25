@@ -2636,6 +2636,7 @@ dependencies = [
  "log",
  "migration",
  "sea-orm",
+ "strum 0.26.2",
 ]
 
 [[package]]

@@ -42,7 +42,7 @@ impl<T> IntoApiResponse<T> for anyhow::Result<T> {
             let parsed: Value = serde_json::from_str(&errors).unwrap();
             let errors = parsed.as_object().unwrap().clone();
 
-            let first_char = error_code.as_bytes().get(0);
+            let first_char = error_code.as_bytes().first();
 
             match first_char {
                 Some(&b'4') => {

@@ -6,7 +6,7 @@ use notion_client::{
     objects::page::Page,
 };
 
-use entity::prelude::*;
+use entity::{post::Category, prelude::*};
 use std::{sync::Arc, time::Duration};
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
@@ -108,6 +108,17 @@ fn receiver(
                 let result = state.repository.page.save(model).await;
                 if let Err(e) = result {
                     error!("save: {}", e);
+                }
+
+                let model = PostEntity {
+                    id: page.id,
+                    category: Category::Page,
+                    created_at: page.created_time,
+                };
+
+                let result = state.repository.post.save(model).await;
+                if let Err(e) = result {
+                    error!("receiver: {}", e);
                 }
             }
         }
