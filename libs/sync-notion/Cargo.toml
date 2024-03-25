@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 entity = { path = "../entity" }
-repositories = { path = "../repositories" }
+repository = { path = "../repository" }
 thiserror = "1.0.57"
 tokio = "1.36.0"
 tracing = "0.1.40"

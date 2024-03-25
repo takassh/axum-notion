@@ -1,7 +1,7 @@
 use std::fs;
 
 use axum::{http::StatusCode, response::IntoResponse, routing::get, Router};
-use repositories::{init_repository, RepositoryError};
+use repository::{init_repository, RepositoryError};
 use serde_json::Value;
 use tower_http::cors::CorsLayer;
 use tracing::{error, info};

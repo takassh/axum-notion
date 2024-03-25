@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use notion_client::{endpoints::Client, NotionClientError};
-use repositories::{init_repository, Repository, RepositoryError};
+use repository::{init_repository, Repository, RepositoryError};
 use tokio::join;
 use toml::{map::Map, Value};
 use tracing::info;

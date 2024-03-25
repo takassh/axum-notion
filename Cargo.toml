@@ -1,11 +1,11 @@
 workspace = { members = [
     "libs/api",
     "libs/entity",
-    "libs/repositories",
+    "libs/repository",
     "libs/sync-github",
     "libs/sync-notion",
 ], exclude = [
-    "libs/repositories/migration",
+    "libs/repository/migration",
 ] }
 [package]
 name = "axum-notion"

@@ -5,7 +5,7 @@ mod events;
 pub mod util;
 
 use client::Client;
-use repositories::{init_repository, Repository, RepositoryError};
+use repository::{init_repository, Repository, RepositoryError};
 use reqwest::StatusCode;
 use toml::{map::Map, Value};
 use tracing::info;

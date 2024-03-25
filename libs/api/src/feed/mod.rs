@@ -1,5 +1,5 @@
 use axum::{extract::State, Json};
-use repositories::Repository;
+use repository::Repository;
 
 mod request;
 pub mod response;

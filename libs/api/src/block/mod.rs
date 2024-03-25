@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, State},
     Json,
 };
-use repositories::Repository;
+use repository::Repository;
 mod request;
 mod response;
 
