@@ -10,7 +10,7 @@ entity = { path = "../entity" }
 repository = { path = "../repository" }
 tokio = "1.36.0"
 tracing = "0.1.40"
-serde_json = "1.0.113"
+serde_json = "1.0.115"
 async-recursion = "1.0.5"
 notion-client = "0.1.8"
 toml = "0.8.12"
