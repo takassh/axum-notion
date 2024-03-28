@@ -11,6 +11,14 @@ use crate::response::{ApiResponse, IntoApiResponse};
 
 use self::response::{GetPageResponse, GetPagesResponse, Page};
 
+/// List all page items
+#[utoipa::path(
+        get,
+        path = "/pages",
+        responses(
+            (status = 200, description = "List all page items successfully", body = [GetPagesResponse])
+        )
+    )]
 pub async fn get_pages(
     State(repo): State<Repository>,
 ) -> ApiResponse<Json<GetPagesResponse>> {
