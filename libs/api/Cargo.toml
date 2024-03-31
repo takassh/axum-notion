@@ -21,3 +21,4 @@ utoipa-rapidoc = { version = "3.0.0", features = ["axum"] }
 tokio = "1.37.0"
 toml = "0.8.12"
 utoipauto = "0.1.10"
+serde_with = { version = "3.7.0", features = ["macros"] }

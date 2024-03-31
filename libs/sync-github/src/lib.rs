@@ -35,12 +35,13 @@ impl State {
 }
 
 pub async fn serve(
+    config_name: &str,
     conn_string: &str,
     github_token: &str,
 ) -> anyhow::Result<()> {
-    info!("Start Github Sync");
+    info!(task = "start github sync");
 
-    let config = load_config()?;
+    let config = load_config(config_name)?;
 
     let repository = init_repository(conn_string).await?;
 
@@ -55,9 +56,9 @@ pub async fn serve(
     Ok(())
 }
 
-fn load_config() -> anyhow::Result<Map<String, Value>> {
+fn load_config(config_name: &str) -> anyhow::Result<Map<String, Value>> {
     let workspace_dir = workspace_dir();
-    let config = std::fs::read_to_string(workspace_dir.join("Config.toml"))?;
+    let config = std::fs::read_to_string(workspace_dir.join(config_name))?;
 
     let config = toml::from_str::<Map<String, Value>>(&config)?;
 

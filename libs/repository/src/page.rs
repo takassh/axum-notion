@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::{
     sea_query, ActiveValue, DatabaseConnection, EntityTrait, Iterable,
-    QueryFilter,
+    PaginatorTrait, QueryFilter,
 };
 
 use sea_orm::ColumnTrait;
@@ -47,6 +47,19 @@ impl From<PageEntity> for page::ActiveModel {
 }
 
 impl PageRepository {
+    pub async fn find_paginate(
+        &self,
+        offset: u64,
+        limit: u64,
+    ) -> anyhow::Result<Vec<PageEntity>> {
+        let pages = Page::find()
+            .paginate(&self.db, limit)
+            .fetch_page(offset)
+            .await?;
+
+        Ok(pages.into_iter().map(PageEntity::from).collect())
+    }
+
     pub async fn find_all(&self) -> anyhow::Result<Vec<PageEntity>> {
         let pages = Page::find().all(&self.db).await?;
 

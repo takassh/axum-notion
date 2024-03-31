@@ -1,28 +1,39 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     Json,
 };
 use repository::Repository;
 
-mod request;
+pub mod request;
 pub mod response;
 
 use crate::response::{ApiResponse, IntoApiResponse};
 
-use self::response::{GetPageResponse, GetPagesResponse, Page};
+use self::{
+    request::GetPagesParam,
+    response::{GetPageResponse, GetPagesResponse, Page},
+};
 
-/// List all page items
+/// List all pages
 #[utoipa::path(
         get,
         path = "/pages",
         responses(
-            (status = 200, description = "List all page items successfully", body = [GetPagesResponse])
+            (status = 200, description = "List all pages successfully", body = [GetPagesResponse])
+        ),
+        params(
+            GetPagesParam
         )
     )]
 pub async fn get_pages(
     State(repo): State<Repository>,
+    Query(params): Query<GetPagesParam>,
 ) -> ApiResponse<Json<GetPagesResponse>> {
-    let pages = repo.page.find_all().await.into_response("502-001")?;
+    let pages = repo
+        .page
+        .find_paginate(params.pagination.offset, params.pagination.limit)
+        .await
+        .into_response("502-001")?;
 
     let response = Json(GetPagesResponse {
         pages: pages
@@ -36,6 +47,17 @@ pub async fn get_pages(
     Ok(response)
 }
 
+/// List a page
+#[utoipa::path(
+    get,
+    path = "/pages/:id",
+    responses(
+        (status = 200, description = "List all page items successfully", body = [GetPageResponse])
+    ),
+    params(
+        ("id", description = "page id"),
+    )
+)]
 pub async fn get_page(
     State(repo): State<Repository>,
     Path(id): Path<String>,

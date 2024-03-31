@@ -33,11 +33,18 @@ fn sender(state: Arc<State>, tx: Sender<Vec<Page>>) -> anyhow::Result<()> {
 
             let pages = scan_all_pages(state.clone()).await;
 
-            info!("Complete scan pages");
-
             let result = tx.send(pages).await;
             if let Err(e) = result {
-                error!("send: {}", e);
+                info!(
+                    task = "scan all events",
+                    result = "error",
+                    err = e.to_string(),
+                );
+            } else {
+                info!(
+                    task = "scan all events",
+                    result = "success",
+                );
             }
         }
     });

@@ -32,7 +32,7 @@ pub async fn serve(conn_string: &str) -> anyhow::Result<Router> {
     )]
     struct ApiDoc;
 
-    info!("Start API Serving");
+    info!(task = "start api serving");
 
     let origins = ["http://localhost:3000".parse().unwrap()];
 

@@ -16,7 +16,7 @@ async fn main() -> anyhow::Result<()> {
 
     let router = serve(conn_string).await?;
 
-    let address = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8080));
+    let address = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8000));
     let listener = TcpListener::bind(&address).await?;
     Ok(axum::serve(listener, router.into_make_service()).await?)
 }

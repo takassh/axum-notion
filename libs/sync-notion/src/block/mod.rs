@@ -37,8 +37,6 @@ fn sender(state: Arc<State>, tx: Sender<Message>) -> anyhow::Result<()> {
             let pages = pages.unwrap();
 
             for page in pages {
-                info!("page id {} starts", page.notion_page_id);
-
                 let _children =
                     get_children(state.clone(), &page.notion_page_id).await;
 
@@ -55,7 +53,18 @@ fn sender(state: Arc<State>, tx: Sender<Message>) -> anyhow::Result<()> {
                     })
                     .await;
                 if let Err(e) = result {
-                    error!("send: {}", e);
+                    info!(
+                        task = "load all blocks",
+                        result = "error",
+                        page.notion_page_id,
+                        err = e.to_string(),
+                    );
+                } else {
+                    info!(
+                        task = "load all blocks",
+                        result = "success",
+                        page.notion_page_id
+                    );
                 }
             }
         }
@@ -176,7 +185,14 @@ fn receiver(
 
             let result = state.repository.block.save(model).await;
             if let Err(e) = result {
-                error!("save: {}", e);
+                info!(
+                    task = "save all blocks",
+                    result = "error",
+                    parent_id,
+                    err = e.to_string(),
+                );
+            } else {
+                info!(task = "save all blocks", result = "success", parent_id);
             }
         }
     });

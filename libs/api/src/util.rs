@@ -1,3 +1,5 @@
+pub mod request;
+
 use std::path::{Path, PathBuf};
 
 pub fn workspace_dir() -> PathBuf {

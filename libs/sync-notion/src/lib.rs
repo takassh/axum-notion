@@ -41,7 +41,7 @@ pub async fn serve(
     notion_token: String,
     notion_db_id: String,
 ) -> anyhow::Result<()> {
-    info!("Start Notion Sync");
+    info!(task = "start notion sync",);
 
     let repository = init_repository(conn_string).await?;
 

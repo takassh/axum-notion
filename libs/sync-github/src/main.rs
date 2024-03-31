@@ -20,8 +20,9 @@ async fn main() -> anyhow::Result<()> {
             secrets.get("LOCAL_DATABASE_URL").unwrap().as_str().unwrap();
         let github_token =
             secrets.get("GITHUB_TOKEN").unwrap().as_str().unwrap();
+        let config = secrets.get("CONFIG").unwrap().as_str().unwrap();
 
-        serve(conn_string, github_token).await
+        serve(conn_string, github_token, &format!("Config{}", config)).await
     });
 
     let _ = handle.await.unwrap();

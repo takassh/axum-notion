@@ -37,27 +37,43 @@ fn sender(state: Arc<State>, tx: Sender<Vec<Event>>) -> anyhow::Result<()> {
                 .await;
 
             let Ok((text, headers)) = result else {
-                error!("get: {}", result.unwrap_err());
+                info!(
+                    task = "load all events",
+                    result = "error",
+                    page,
+                    err = result.unwrap_err().to_string(),
+                );
                 continue;
             };
 
             let events = serde_json::from_str::<Vec<Event>>(&text);
             let Ok(events) = events else {
-                error!("parse: {}", events.err().unwrap());
+                info!(
+                    task = "load all events",
+                    result = "error",
+                    page,
+                    err = events.unwrap_err().to_string(),
+                );
                 continue;
             };
 
             let result = tx.send(events).await;
             let Ok(_) = result else {
-                error!("send: {}", result.err().unwrap());
+                info!(
+                    task = "load all events",
+                    result = "error",
+                    page,
+                    err = result.unwrap_err().to_string(),
+                );
                 continue;
             };
+
+            info!(task = "load all events", result = "success", page,);
 
             let link = headers.get("link").unwrap().to_str().unwrap();
             if link.contains("rel=\"next\"") {
                 page += 1;
             } else {
-                info!("Finish to load all events");
                 page = 0;
             }
         }
