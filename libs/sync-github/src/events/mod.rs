@@ -19,7 +19,7 @@ pub fn spawn_service_to_get_events(
     let sender_handler = sender(state.clone(), tx);
     let receiver_handler = receiver(state.clone(), rx);
 
-    return vec![sender_handler, receiver_handler];
+    vec![sender_handler, receiver_handler]
 }
 
 #[tracing::instrument]
