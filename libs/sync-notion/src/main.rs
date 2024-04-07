@@ -1,7 +1,7 @@
 use anyhow::Context as _;
 use futures::future::join_all;
 use std::fs::OpenOptions;
-use sync_github::{serve, util::workspace_dir};
+use sync_notion::{serve, util::workspace_dir};
 use toml::{map::Map, Value};
 
 #[tokio::main]
@@ -18,13 +18,11 @@ async fn main() -> anyhow::Result<()> {
 
     let conn_string =
         secrets.get("LOCAL_DATABASE_URL").unwrap().as_str().unwrap();
-    let github_token = secrets.get("GITHUB_TOKEN").unwrap().as_str().unwrap();
-    let config = secrets.get("CONFIG").unwrap().as_str().unwrap();
+    let notion_token = secrets.get("NOTION_TOKEN").unwrap().as_str().unwrap();
 
-    let handles =
-        serve(conn_string, github_token, &format!("Config{}", config)).await?;
+    let handles = serve(conn_string, notion_token.to_string()).await?;
 
-    join_all(handles).await;
+    let _ = join_all(handles).await;
 
     return Ok(());
 }

@@ -14,3 +14,7 @@ refresh:
 
 fresh:
 	@ sea-orm-cli migrate fresh -d ./libs/repository/migration
+
+down:
+	@ if [ -z "${n}" ]; then (echo 'Missing n=NUM. e.g. n=1' >&2 && exit 1) fi
+	@ sea-orm-cli migrate down -n $(n) -d ./libs/repository/migration

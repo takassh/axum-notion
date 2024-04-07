@@ -7,6 +7,7 @@ pub mod util;
 use anyhow::Context as _;
 use client::Client;
 use repository::{init_repository, Repository};
+use tokio::task::JoinHandle;
 use toml::{map::Map, Value};
 use tracing::info;
 use util::workspace_dir;
@@ -38,7 +39,7 @@ pub async fn serve(
     config_name: &str,
     conn_string: &str,
     github_token: &str,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Vec<JoinHandle<anyhow::Result<()>>>> {
     info!(task = "start github sync");
 
     let config = load_config(config_name)?;
@@ -51,9 +52,7 @@ pub async fn serve(
 
     let state = Arc::new(State::new(repository, client, state_config));
 
-    events::spawn_service_to_get_events(state.clone()).await?;
-
-    Ok(())
+    Ok(events::spawn_service_to_get_events(state.clone()))
 }
 
 fn load_config(config_name: &str) -> anyhow::Result<Map<String, Value>> {

@@ -3,14 +3,12 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "page")]
+#[sea_orm(table_name = "notion_database")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub notion_page_id: String,
-    pub notion_database_id: String,
+    pub id: String,
+    pub name: String,
     pub created_at: DateTime,
-    pub updated_at: Option<DateTime>,
-    pub contents: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

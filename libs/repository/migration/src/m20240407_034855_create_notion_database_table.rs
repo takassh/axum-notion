@@ -9,22 +9,24 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Page::Table)
+                    .table(NotionDatabase::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Page::NotionPageId)
-                            .string()
-                            .not_null()
-                            .primary_key(),
-                    )
-                    .col(
-                        ColumnDef::new(Page::NotionDatabaseId)
+                        ColumnDef::new(NotionDatabase::Id)
+                            .primary_key()
                             .string()
                             .not_null(),
                     )
-                    .col(ColumnDef::new(Page::CreatedAt).date_time().not_null())
-                    .col(ColumnDef::new(Page::UpdatedAt).date_time())
-                    .col(ColumnDef::new(Page::Contents).string().not_null())
+                    .col(
+                        ColumnDef::new(NotionDatabase::Name)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(NotionDatabase::CreatedAt)
+                            .date_time()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await
@@ -32,17 +34,15 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(Page::Table).to_owned())
+            .drop_table(Table::drop().table(NotionDatabase::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum Page {
+enum NotionDatabase {
     Table,
-    NotionPageId,
-    NotionDatabaseId,
+    Id,
+    Name,
     CreatedAt,
-    UpdatedAt,
-    Contents,
 }

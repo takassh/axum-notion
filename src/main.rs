@@ -23,10 +23,6 @@ async fn main(
         .get("NOTION_TOKEN")
         .context("NOTION_TOKEN was not found")?;
 
-    let notion_db_id = secret_store
-        .get("NOTION_DB_ID")
-        .context("NOTION_DB_ID was not found")?;
-
     let github_token = secret_store
         .get("GITHUB_TOKEN")
         .context("GITHUB_TOKEN was not found")?;
@@ -36,13 +32,13 @@ async fn main(
     let config_name = &format!("Config{}", config);
 
     let (notion, github, router) = join!(
-        sync_notion::serve(&conn_string, notion_token, notion_db_id),
+        sync_notion::serve(&conn_string, notion_token),
         sync_github::serve(config_name, &conn_string, &github_token),
         api::serve(&conn_string)
     );
 
-    notion.context("failed to build notion service")?;
-    github.context("failed to build github service")?;
+    let _ = notion.context("failed to build notion service")?;
+    let _ = github.context("failed to build github service")?;
     let router = router.context("failed to build api service")?;
 
     Ok(router.into())

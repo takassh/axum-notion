@@ -1,20 +1,28 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     Json,
 };
 use repository::Repository;
 
-mod request;
+pub mod request;
 pub mod response;
 
 use crate::response::{ApiResponse, IntoApiResponse};
 
-use self::response::{Event, GetEventResponse, GetEventsResponse};
+use self::{
+    request::GetEventsParam,
+    response::{Event, GetEventResponse, GetEventsResponse},
+};
 
 pub async fn get_events(
     State(repo): State<Repository>,
+    Query(params): Query<GetEventsParam>,
 ) -> ApiResponse<Json<GetEventsResponse>> {
-    let events = repo.event.find_all().await.into_response("502-005")?;
+    let events = repo
+        .event
+        .find_paginate(params.pagination.page, params.pagination.limit)
+        .await
+        .into_response("502-005")?;
 
     let response = Json(GetEventsResponse {
         events: events

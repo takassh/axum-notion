@@ -31,7 +31,11 @@ pub async fn get_pages(
 ) -> ApiResponse<Json<GetPagesResponse>> {
     let pages = repo
         .page
-        .find_paginate(params.pagination.offset, params.pagination.limit)
+        .find_paginate(
+            params.pagination.page,
+            params.pagination.limit,
+            params.category,
+        )
         .await
         .into_response("502-001")?;
 

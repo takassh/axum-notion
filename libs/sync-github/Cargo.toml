@@ -18,3 +18,4 @@ chrono = "0.4.35"
 serde_with = { version = "3.7.0", features = ["macros"] }
 tracing-subscriber = "0.3"
 anyhow = "1.0.81"
+futures = "0.3.30"

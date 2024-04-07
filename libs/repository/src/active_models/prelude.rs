@@ -2,5 +2,6 @@
 
 pub use super::block::Entity as Block;
 pub use super::event::Entity as Event;
+pub use super::notion_database::Entity as NotionDatabase;
 pub use super::page::Entity as Page;
 pub use super::post::Entity as Post;

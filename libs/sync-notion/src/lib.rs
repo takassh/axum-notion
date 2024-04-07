@@ -3,20 +3,19 @@ use std::sync::Arc;
 use anyhow::Context as _;
 use notion_client::endpoints::Client;
 use repository::{init_repository, Repository};
-use tokio::join;
+use tokio::task::JoinHandle;
 use toml::{map::Map, Value};
 use tracing::info;
 use util::workspace_dir;
 
 mod block;
 mod page;
-mod util;
+pub mod util;
 
 #[derive(Clone, Debug)]
 pub struct State {
     repository: Repository,
     client: Client,
-    notion_db_id: String,
     pause_secs: u64,
 }
 
@@ -24,13 +23,11 @@ impl State {
     pub fn new(
         repository: Repository,
         client: Client,
-        notion_db_id: String,
         pause_secs: u64,
     ) -> Self {
         Self {
             repository,
             client,
-            notion_db_id,
             pause_secs,
         }
     }
@@ -39,8 +36,7 @@ impl State {
 pub async fn serve(
     conn_string: &str,
     notion_token: String,
-    notion_db_id: String,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Vec<JoinHandle<anyhow::Result<()>>>> {
     info!(task = "start notion sync",);
 
     let repository = init_repository(conn_string).await?;
@@ -57,22 +53,12 @@ pub async fn serve(
         .as_integer()
         .context("failed to parse pause_secs config")?;
 
-    let state = Arc::new(State::new(
-        repository,
-        client,
-        notion_db_id,
-        pause_secs as u64,
-    ));
+    let state = Arc::new(State::new(repository, client, pause_secs as u64));
 
-    let (page, block) = join!(
-        page::spawn_service_to_get_pages(state.clone()),
-        block::spawn_service_to_get_blocks(state.clone())
-    );
+    let page_handles = page::spawn_service_to_get_pages(state.clone());
+    let block_handles = block::spawn_service_to_get_blocks(state.clone());
 
-    page?;
-    block?;
-
-    Ok(())
+    Ok(page_handles.into_iter().chain(block_handles).collect())
 }
 
 fn load_config() -> anyhow::Result<Map<String, Value>> {

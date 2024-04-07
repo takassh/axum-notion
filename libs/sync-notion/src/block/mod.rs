@@ -5,6 +5,7 @@ use notion_client::objects::block::{Block, BlockType};
 use std::{sync::Arc, time::Duration};
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
+    task::JoinHandle,
     time::sleep,
 };
 use tracing::{error, info};
@@ -14,27 +15,30 @@ struct Message {
     blocks: Vec<Block>,
 }
 
-pub async fn spawn_service_to_get_blocks(
+pub fn spawn_service_to_get_blocks(
     state: Arc<State>,
-) -> anyhow::Result<()> {
+) -> Vec<JoinHandle<anyhow::Result<()>>> {
     let (tx, rx) = mpsc::channel(100);
 
-    let _ = sender(state.clone(), tx);
-    let _ = receiver(state.clone(), rx);
+    let sender_handler = sender(state.clone(), tx);
+    let receiver_handler = receiver(state.clone(), rx);
 
-    Ok(())
+    vec![sender_handler, receiver_handler]
 }
 
 #[tracing::instrument]
-fn sender(state: Arc<State>, tx: Sender<Message>) -> anyhow::Result<()> {
+fn sender(
+    state: Arc<State>,
+    tx: Sender<Message>,
+) -> JoinHandle<anyhow::Result<()>> {
     tokio::spawn(async move {
         loop {
             let pages = state.repository.page.find_all().await;
 
-            if let Err(e) = &pages {
-                error!("failed to find all: {}", e);
-            }
-            let pages = pages.unwrap();
+            let Ok(pages) = pages else {
+                error!("failed to find all: {}", pages.err().unwrap());
+                continue;
+            };
 
             for page in pages {
                 let _children =
@@ -68,9 +72,7 @@ fn sender(state: Arc<State>, tx: Sender<Message>) -> anyhow::Result<()> {
                 }
             }
         }
-    });
-
-    Ok(())
+    })
 }
 
 #[async_recursion]
@@ -168,7 +170,7 @@ async fn get_children(state: Arc<State>, parent_block_id: &str) -> Vec<Block> {
 fn receiver(
     state: Arc<State>,
     mut rx: Receiver<Message>,
-) -> anyhow::Result<()> {
+) -> JoinHandle<anyhow::Result<()>> {
     tokio::spawn(async move {
         loop {
             let Some(message) = rx.recv().await else {
@@ -195,6 +197,5 @@ fn receiver(
                 info!(task = "save all blocks", result = "success", parent_id);
             }
         }
-    });
-    return Ok(());
+    })
 }

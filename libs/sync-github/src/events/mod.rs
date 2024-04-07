@@ -4,25 +4,29 @@ use entity::{post::Category, prelude::*};
 use std::{sync::Arc, time::Duration};
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
+    task::JoinHandle,
     time::sleep,
 };
 use tracing::{error, info};
 
 mod response;
 
-pub async fn spawn_service_to_get_events(
+pub fn spawn_service_to_get_events(
     state: Arc<State>,
-) -> anyhow::Result<()> {
+) -> Vec<JoinHandle<anyhow::Result<()>>> {
     let (tx, rx) = mpsc::channel(100);
 
-    let _ = sender(state.clone(), tx);
-    let _ = receiver(state.clone(), rx);
+    let sender_handler = sender(state.clone(), tx);
+    let receiver_handler = receiver(state.clone(), rx);
 
-    Ok(())
+    return vec![sender_handler, receiver_handler];
 }
 
 #[tracing::instrument]
-fn sender(state: Arc<State>, tx: Sender<Vec<Event>>) -> anyhow::Result<()> {
+fn sender(
+    state: Arc<State>,
+    tx: Sender<Vec<Event>>,
+) -> JoinHandle<anyhow::Result<()>> {
     tokio::spawn(async move {
         let mut page = 1;
         loop {
@@ -77,16 +81,14 @@ fn sender(state: Arc<State>, tx: Sender<Vec<Event>>) -> anyhow::Result<()> {
                 page = 0;
             }
         }
-    });
-
-    return Ok(());
+    })
 }
 
 #[tracing::instrument]
 fn receiver(
     state: Arc<State>,
     mut rx: Receiver<Vec<Event>>,
-) -> anyhow::Result<()> {
+) -> JoinHandle<anyhow::Result<()>> {
     tokio::spawn(async move {
         loop {
             let Some(events) = rx.recv().await else {
@@ -120,9 +122,7 @@ fn receiver(
                 }
             }
         }
-    });
-
-    return Ok(());
+    })
 }
 
 #[cfg(test)]
