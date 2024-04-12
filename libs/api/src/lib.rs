@@ -87,7 +87,6 @@ pub async fn serve(repository: Repository) -> anyhow::Result<Router> {
         .nest("/events", event_router)
         .nest("/posts", post_router)
         .layer(CorsLayer::new().allow_origin(origins))
-        .with_state(repository.clone())
         .fallback(not_found::get_404);
 
     Ok(router)
