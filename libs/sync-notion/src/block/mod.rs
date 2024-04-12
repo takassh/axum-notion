@@ -36,7 +36,7 @@ fn sender(
             let pages = state.repository.page.find_all().await;
 
             let Ok(pages) = pages else {
-                error!("failed to find all: {}", pages.err().unwrap());
+                error!(task = "find all", err = pages.unwrap_err().to_string());
                 continue;
             };
 
@@ -57,18 +57,13 @@ fn sender(
                     })
                     .await;
                 if let Err(e) = result {
-                    info!(
+                    error!(
                         task = "load all blocks",
-                        result = "error",
                         page.notion_page_id,
-                        err = e.to_string(),
+                        error = e.to_string(),
                     );
                 } else {
-                    info!(
-                        task = "load all blocks",
-                        result = "success",
-                        page.notion_page_id
-                    );
+                    info!(task = "load all blocks", page.notion_page_id);
                 }
             }
         }
@@ -158,7 +153,7 @@ async fn get_children(state: Arc<State>, parent_block_id: &str) -> Vec<Block> {
                 }
             }
             Err(e) => {
-                error!("err: {:?}", e);
+                error!(task = "retrieve block children", error = e.to_string());
             }
         }
     }
@@ -187,14 +182,13 @@ fn receiver(
 
             let result = state.repository.block.save(model).await;
             if let Err(e) = result {
-                info!(
+                error!(
                     task = "save all blocks",
-                    result = "error",
                     parent_id,
-                    err = e.to_string(),
+                    error = e.to_string(),
                 );
             } else {
-                info!(task = "save all blocks", result = "success", parent_id);
+                info!(task = "save all blocks", parent_id);
             }
         }
     })

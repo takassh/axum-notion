@@ -16,11 +16,13 @@ edition = "2021"
 shuttle-axum = "0.42.0"
 shuttle-runtime = { version = "0.42.0", default-features = false }
 shuttle-shared-db = { version = "0.42.0", features = ["sqlx", "postgres"] }
+shuttle-persist = "0.42.0"
 tokio = "1.28.2"
 tracing = "0.1.40"
 api = { path = "./libs/api" }
 sync-notion = { path = "./libs/sync-notion" }
 sync-github = { path = "./libs/sync-github" }
+repository = { path = "./libs/repository" }
 toml = "0.8.12"
 url = "2.5.0"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }

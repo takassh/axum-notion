@@ -52,18 +52,13 @@ fn sender(
 
                     let result = tx.send(pages).await;
                     if let Err(e) = result {
-                        info!(
+                        error!(
                             task = "scan all pages",
-                            result = "error",
                             notion_database_id.id,
-                            err = e.to_string(),
+                            error = e.to_string(),
                         );
                     } else {
-                        info!(
-                            task = "scan all pages",
-                            result = "success",
-                            notion_database_id.id
-                        );
+                        info!(task = "scan all pages", notion_database_id.id);
                     }
                 });
 
@@ -107,7 +102,11 @@ async fn scan_all_pages(state: Arc<State>, page_id: &str) -> Vec<Page> {
                 }
             }
             Err(e) => {
-                error!("err: {:?}, request: {:?}", e, request);
+                error!(
+                    task = "query_a_database",
+                    request = format!("{:?}", request),
+                    error = e.to_string()
+                );
             }
         }
 
@@ -142,9 +141,13 @@ fn receiver(
                     ..Default::default()
                 };
 
-                let result = state.repository.page.save(model).await;
+                let result = state.repository.page.save(model.clone()).await;
                 if let Err(e) = result {
-                    error!("save: {}", e);
+                    error!(
+                        task = "save",
+                        model = format!("{:?}", model),
+                        error = e.to_string()
+                    );
                 }
 
                 let model = PostEntity {
@@ -154,9 +157,13 @@ fn receiver(
                     created_at: page.created_time,
                 };
 
-                let result = state.repository.post.save(model).await;
+                let result = state.repository.post.save(model.clone()).await;
                 if let Err(e) = result {
-                    error!("receiver: {}", e);
+                    error!(
+                        task = "save",
+                        model = format!("{:?}", model),
+                        error = e.to_string()
+                    );
                 }
             }
         }

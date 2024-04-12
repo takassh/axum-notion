@@ -1,5 +1,6 @@
 use anyhow::Context as _;
 use futures::future::join_all;
+use repository::Repository;
 use std::fs::OpenOptions;
 use sync_notion::{serve, util::workspace_dir};
 use toml::{map::Map, Value};
@@ -20,7 +21,9 @@ async fn main() -> anyhow::Result<()> {
         secrets.get("LOCAL_DATABASE_URL").unwrap().as_str().unwrap();
     let notion_token = secrets.get("NOTION_TOKEN").unwrap().as_str().unwrap();
 
-    let handles = serve(conn_string, notion_token.to_string()).await?;
+    let repository = Repository::new(conn_string).await?;
+
+    let handles = serve(repository, notion_token.to_string()).await?;
 
     let _ = join_all(handles).await;
 

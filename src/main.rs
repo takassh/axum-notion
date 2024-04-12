@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 use std::process::id;
 
 use anyhow::Context;
+use repository::Repository;
+use shuttle_persist::PersistInstance;
 use shuttle_runtime::{SecretStore, Secrets};
 use tokio::join;
 use toml::map::Map;
@@ -16,6 +18,7 @@ async fn main(
     #[Secrets] secret_store: SecretStore,
     #[shuttle_shared_db::Postgres(local_uri = "{secrets.LOCAL_DATABASE_URL}")]
     conn_string: String,
+    #[shuttle_persist::Persist] persist: PersistInstance,
 ) -> shuttle_axum::ShuttleAxum {
     init_log(secret_store.clone())?;
 
@@ -31,10 +34,12 @@ async fn main(
 
     let config_name = &format!("Config{}", config);
 
+    let repository = Repository::new(&conn_string).await?.with_cache(persist);
+
     let (notion, github, router) = join!(
-        sync_notion::serve(&conn_string, notion_token),
-        sync_github::serve(config_name, &conn_string, &github_token),
-        api::serve(&conn_string)
+        sync_notion::serve(repository.clone(), notion_token),
+        sync_github::serve(repository.clone(), config_name, &github_token),
+        api::serve(repository)
     );
 
     let _ = notion.context("failed to build notion service")?;

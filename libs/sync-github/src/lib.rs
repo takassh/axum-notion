@@ -6,7 +6,7 @@ pub mod util;
 
 use anyhow::Context as _;
 use client::Client;
-use repository::{init_repository, Repository};
+use repository::Repository;
 use tokio::task::JoinHandle;
 use toml::{map::Map, Value};
 use tracing::info;
@@ -36,15 +36,13 @@ impl State {
 }
 
 pub async fn serve(
+    repository: Repository,
     config_name: &str,
-    conn_string: &str,
     github_token: &str,
 ) -> anyhow::Result<Vec<JoinHandle<anyhow::Result<()>>>> {
     info!(task = "start github sync");
 
     let config = load_config(config_name)?;
-
-    let repository = init_repository(conn_string).await?;
 
     let client = Client::new(github_token.to_string(), &config)?;
 

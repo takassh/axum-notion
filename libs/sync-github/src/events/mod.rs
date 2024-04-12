@@ -41,9 +41,8 @@ fn sender(
                 .await;
 
             let Ok((text, headers)) = result else {
-                info!(
+                error!(
                     task = "load all events",
-                    result = "error",
                     page,
                     err = result.unwrap_err().to_string(),
                 );
@@ -52,9 +51,8 @@ fn sender(
 
             let events = serde_json::from_str::<Vec<Event>>(&text);
             let Ok(events) = events else {
-                info!(
+                error!(
                     task = "load all events",
-                    result = "error",
                     page,
                     err = events.unwrap_err().to_string(),
                 );
@@ -63,16 +61,15 @@ fn sender(
 
             let result = tx.send(events).await;
             let Ok(_) = result else {
-                info!(
+                error!(
                     task = "load all events",
-                    result = "error",
                     page,
                     err = result.unwrap_err().to_string(),
                 );
                 continue;
             };
 
-            info!(task = "load all events", result = "success", page,);
+            info!(task = "load all events", page);
 
             let link = headers.get("link").unwrap().to_str().unwrap();
             if link.contains("rel=\"next\"") {
@@ -104,9 +101,13 @@ fn receiver(
                     ..Default::default()
                 };
 
-                let result = state.repository.event.save(model).await;
+                let result = state.repository.event.save(model.clone()).await;
                 if let Err(e) = result {
-                    error!("receiver: {}", e);
+                    error!(
+                        task = "save",
+                        model = format!("{:?}", model),
+                        error = e.to_string()
+                    );
                 }
 
                 let model = PostEntity {
@@ -116,9 +117,13 @@ fn receiver(
                     created_at: event.created_at,
                 };
 
-                let result = state.repository.post.save(model).await;
+                let result = state.repository.post.save(model.clone()).await;
                 if let Err(e) = result {
-                    error!("receiver: {}", e);
+                    error!(
+                        task = "save",
+                        model = format!("{:?}", model),
+                        error = e.to_string()
+                    );
                 }
             }
         }

@@ -1,5 +1,6 @@
 use axum::{routing::get, Router};
-use repository::init_repository;
+
+use repository::Repository;
 use tower_http::cors::CorsLayer;
 use tracing::info;
 use utoipa::OpenApi;
@@ -8,6 +9,8 @@ use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 use utoipauto::utoipauto;
 
+use crate::top::{receive, send};
+
 pub mod block;
 pub mod event;
 pub mod healthz;
@@ -15,6 +18,7 @@ pub mod not_found;
 pub mod page;
 pub mod post;
 mod response;
+pub mod top;
 mod util;
 
 pub enum ApiError {
@@ -22,7 +26,7 @@ pub enum ApiError {
     ServerError(String),
 }
 
-pub async fn serve(conn_string: &str) -> anyhow::Result<Router> {
+pub async fn serve(repository: Repository) -> anyhow::Result<Router> {
     #[utoipauto(paths = "./libs/api/src")]
     #[derive(OpenApi)]
     #[openapi(
@@ -35,8 +39,6 @@ pub async fn serve(conn_string: &str) -> anyhow::Result<Router> {
     info!(task = "start api serving");
 
     let origins = ["http://localhost:3000".parse().unwrap()];
-
-    let repository = init_repository(conn_string).await?;
 
     // pages
     let page_router = Router::new()
@@ -65,6 +67,12 @@ pub async fn serve(conn_string: &str) -> anyhow::Result<Router> {
         .fallback(not_found::get_404)
         .with_state(repository.clone());
 
+    // top
+    let top_router = Router::new()
+        .route("/send", get(send))
+        .route("/receive", get(receive))
+        .with_state(repository.clone());
+
     let router = Router::new()
         .merge(
             SwaggerUi::new("/swagger-ui")
@@ -73,11 +81,13 @@ pub async fn serve(conn_string: &str) -> anyhow::Result<Router> {
         .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
         .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
         .route("/healthz", get(healthz::get_health))
+        .nest("/top", top_router)
         .nest("/pages", page_router)
         .nest("/blocks", block_router)
         .nest("/events", event_router)
         .nest("/posts", post_router)
         .layer(CorsLayer::new().allow_origin(origins))
+        .with_state(repository.clone())
         .fallback(not_found::get_404);
 
     Ok(router)

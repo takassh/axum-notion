@@ -9,3 +9,5 @@ edition = "2021"
 chrono = "0.4.35"
 strum = { version = "0.26.2", features = ["derive"] }
 serde = { version = "1.0.196", features = ["derive"] }
+regex = "1.10.4"
+anyhow = "1.0.82"

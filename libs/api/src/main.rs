@@ -2,6 +2,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use anyhow::Context;
 use api::serve;
+use repository::Repository;
 use tokio::net::TcpListener;
 use toml::{map::Map, Value};
 use util::workspace_dir;
@@ -13,8 +14,9 @@ async fn main() -> anyhow::Result<()> {
     let secrets = load_env()?;
     let conn_string =
         secrets.get("LOCAL_DATABASE_URL").unwrap().as_str().unwrap();
+    let repository = Repository::new(conn_string).await?;
 
-    let router = serve(conn_string).await?;
+    let router = serve(repository).await?;
 
     let address = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8000));
     let listener = TcpListener::bind(&address).await?;

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use notion_client::endpoints::Client;
-use repository::{init_repository, Repository};
+use repository::Repository;
 use tokio::task::JoinHandle;
 use toml::{map::Map, Value};
 use tracing::info;
@@ -34,12 +34,10 @@ impl State {
 }
 
 pub async fn serve(
-    conn_string: &str,
+    repository: Repository,
     notion_token: String,
 ) -> anyhow::Result<Vec<JoinHandle<anyhow::Result<()>>>> {
     info!(task = "start notion sync",);
-
-    let repository = init_repository(conn_string).await?;
 
     let client = Client::new(notion_token)?;
 
