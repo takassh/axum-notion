@@ -7,6 +7,7 @@ use axum::{
     },
     response::Response,
 };
+use axum_extra::{headers, TypedHeader};
 use futures_util::{SinkExt, StreamExt};
 use repository::Repository;
 use tokio::time::sleep;
@@ -14,8 +15,15 @@ use tracing::{error, info};
 
 pub async fn send(
     ws: WebSocketUpgrade,
+    user_agent: Option<TypedHeader<headers::UserAgent>>,
     State(repo): State<Repository>,
 ) -> Response {
+    let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
+        user_agent.to_string()
+    } else {
+        String::from("Unknown browser")
+    };
+    info!("`{user_agent}` connected.");
     ws.on_upgrade(|socket| handle_send_socket(socket, repo))
 }
 
@@ -40,23 +48,26 @@ async fn handle_send_socket(socket: WebSocket, repo: Repository) {
             return;
         };
 
-        let text = msg.into_text();
-        let Ok(text) = text else {
-            error!(
-                task = "msg.into_text",
-                error = text.unwrap_err().to_string()
-            );
-            continue;
-        };
+        match msg {
+            Message::Close(_) => {
+                info!("Connection closed");
+                return;
+            }
+            Message::Text(text) => {
+                let t = top.set(&text);
 
-        let t = top.set(&text);
+                let Ok(t) = t else {
+                    error!(
+                        task = "top.set",
+                        error = t.unwrap_err().to_string()
+                    );
+                    continue;
+                };
 
-        let Ok(t) = t else {
-            error!(task = "top.set", error = t.unwrap_err().to_string());
-            continue;
-        };
-
-        info!(task = "receive message", t = format!("{:?}", t));
+                info!(task = "receive message", t = format!("{:?}", t));
+            }
+            _ => {}
+        }
     }
 }
 
@@ -73,26 +84,53 @@ async fn handle_receive_socket(socket: WebSocket, repo: Repository) {
         return;
     };
 
-    let (mut sender, _) = socket.split();
+    let (mut sender, mut receiver) = socket.split();
+
+    tokio::spawn(async move {
+        loop {
+            sleep(Duration::from_secs(10)).await;
+
+            let result = top.get();
+
+            let Ok(result) = result else {
+                error!(
+                    task = "top.get",
+                    error = result.unwrap_err().to_string()
+                );
+                return;
+            };
+
+            let result = serde_json::to_string(&result);
+            let Ok(result) = result else {
+                error!(
+                    task = "to_string",
+                    error = result.unwrap_err().to_string()
+                );
+                return;
+            };
+
+            if let Err(e) = sender.send(Message::Text(result)).await {
+                error!(task = "send", error = e.to_string());
+            }
+        }
+    });
 
     loop {
-        sleep(Duration::from_secs(10)).await;
+        let Some(msg) = receiver.next().await else {
+            continue;
+        };
 
-        let result = top.get();
-
-        let Ok(result) = result else {
-            error!(task = "top.get", error = result.unwrap_err().to_string());
+        let Ok(msg) = msg else {
+            error!(
+                task = "receive message",
+                error = msg.unwrap_err().to_string()
+            );
             return;
         };
 
-        let result = serde_json::to_string(&result);
-        let Ok(result) = result else {
-            error!(task = "to_string", error = result.unwrap_err().to_string());
+        if let Message::Close(_) = msg {
+            info!("Connection closed");
             return;
-        };
-
-        if let Err(e) = sender.send(Message::Text(result)).await {
-            error!(task = "send", error = e.to_string());
         }
     }
 }

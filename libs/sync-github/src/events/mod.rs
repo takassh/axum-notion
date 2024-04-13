@@ -7,7 +7,7 @@ use tokio::{
     task::JoinHandle,
     time::sleep,
 };
-use tracing::{error, info};
+use tracing::error;
 
 mod response;
 
@@ -68,8 +68,6 @@ fn sender(
                 );
                 continue;
             };
-
-            info!(task = "load all events", page);
 
             let link = headers.get("link").unwrap().to_str().unwrap();
             if link.contains("rel=\"next\"") {

@@ -20,7 +20,11 @@ async fn main() -> anyhow::Result<()> {
 
     let address = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8000));
     let listener = TcpListener::bind(&address).await?;
-    Ok(axum::serve(listener, router.into_make_service()).await?)
+    Ok(axum::serve(
+        listener,
+        router.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?)
 }
 
 fn load_env() -> anyhow::Result<Map<String, Value>> {

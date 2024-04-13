@@ -8,7 +8,7 @@
             "type": "lldb",
             "request": "attach",
             "name": "Attach to Shuttle",
-            "program": "${workspaceFolder}/target/debug/axum-notion"
+            "program": "${workspaceFolder}/target/debug/activity-takassh"
           }
     ]
 }

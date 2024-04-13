@@ -8,7 +8,7 @@ use tokio::{
     task::JoinHandle,
     time::sleep,
 };
-use tracing::{error, info};
+use tracing::error;
 
 struct Message {
     parent_id: String,
@@ -62,8 +62,6 @@ fn sender(
                         page.notion_page_id,
                         error = e.to_string(),
                     );
-                } else {
-                    info!(task = "load all blocks", page.notion_page_id);
                 }
             }
         }
@@ -187,8 +185,6 @@ fn receiver(
                     parent_id,
                     error = e.to_string(),
                 );
-            } else {
-                info!(task = "save all blocks", parent_id);
             }
         }
     })

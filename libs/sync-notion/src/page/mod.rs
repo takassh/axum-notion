@@ -14,7 +14,7 @@ use tokio::{
     sync::mpsc::{self, Receiver, Sender},
     time::sleep,
 };
-use tracing::{error, info};
+use tracing::error;
 
 pub fn spawn_service_to_get_pages(
     state: Arc<State>,
@@ -57,8 +57,6 @@ fn sender(
                             notion_database_id.id,
                             error = e.to_string(),
                         );
-                    } else {
-                        info!(task = "scan all pages", notion_database_id.id);
                     }
                 });
 
