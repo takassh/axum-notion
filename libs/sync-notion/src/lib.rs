@@ -37,7 +37,7 @@ pub async fn serve(
     repository: Repository,
     notion_token: String,
 ) -> anyhow::Result<Vec<JoinHandle<anyhow::Result<()>>>> {
-    info!(task = "start notion sync",);
+    info!(task = "start notion sync");
 
     let client = Client::new(notion_token)?;
 
