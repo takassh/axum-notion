@@ -3,6 +3,29 @@
 version = 3
 
 [[package]]
+name = "activity-takassh"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "api",
+ "base64 0.22.0",
+ "futures",
+ "repository",
+ "shuttle-axum",
+ "shuttle-persist",
+ "shuttle-runtime",
+ "shuttle-shared-db",
+ "sync-github",
+ "sync-notion",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-loki",
+ "tracing-subscriber",
+ "url",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -492,29 +515,6 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
-]
-
-[[package]]
-name = "axum-notion"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "api",
- "base64 0.22.0",
- "futures",
- "repository",
- "shuttle-axum",
- "shuttle-persist",
- "shuttle-runtime",
- "shuttle-shared-db",
- "sync-github",
- "sync-notion",
- "tokio",
- "toml",
- "tracing",
- "tracing-loki",
- "tracing-subscriber",
- "url",
 ]
 
 [[package]]
