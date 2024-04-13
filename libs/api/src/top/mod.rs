@@ -10,7 +10,8 @@ use axum::{
 use axum_extra::{headers, TypedHeader};
 use futures_util::{SinkExt, StreamExt};
 use repository::Repository;
-use tokio::time::sleep;
+use tokio::{select, time::sleep};
+use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
 pub async fn send(
@@ -85,32 +86,41 @@ async fn handle_receive_socket(socket: WebSocket, repo: Repository) {
     };
 
     let (mut sender, mut receiver) = socket.split();
+    let token = CancellationToken::new();
+    let cloned_token = token.clone();
 
     tokio::spawn(async move {
         loop {
-            sleep(Duration::from_secs(10)).await;
+            select! {
+                _ = cloned_token.cancelled() => {
+                    info!("token is cancelled");
+                    return;
+                }
+                _ = sleep(Duration::from_secs(10)) => {
 
-            let result = top.get();
+                    let result = top.get();
 
-            let Ok(result) = result else {
-                error!(
-                    task = "top.get",
-                    error = result.unwrap_err().to_string()
-                );
-                return;
-            };
+                    let Ok(result) = result else {
+                        error!(
+                            task = "top.get",
+                            error = result.unwrap_err().to_string()
+                        );
+                        return;
+                    };
 
-            let result = serde_json::to_string(&result);
-            let Ok(result) = result else {
-                error!(
-                    task = "to_string",
-                    error = result.unwrap_err().to_string()
-                );
-                return;
-            };
+                    let result = serde_json::to_string(&result);
+                    let Ok(result) = result else {
+                        error!(
+                            task = "to_string",
+                            error = result.unwrap_err().to_string()
+                        );
+                        return;
+                    };
 
-            if let Err(e) = sender.send(Message::Text(result)).await {
-                error!(task = "send", error = e.to_string());
+                    if let Err(e) = sender.send(Message::Text(result)).await {
+                        error!(task = "send", error = e.to_string());
+                    }
+                }
             }
         }
     });
@@ -130,6 +140,7 @@ async fn handle_receive_socket(socket: WebSocket, repo: Repository) {
 
         if let Message::Close(_) = msg {
             info!("Connection closed");
+            token.cancel();
             return;
         }
     }
