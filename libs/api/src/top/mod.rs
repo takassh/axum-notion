@@ -96,7 +96,7 @@ async fn handle_receive_socket(socket: WebSocket, repo: Repository) {
                     info!("token is cancelled");
                     return;
                 }
-                _ = sleep(Duration::from_secs(10)) => {
+                _ = sleep(Duration::from_secs(1)) => {
 
                     let result = top.get();
 
