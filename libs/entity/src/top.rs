@@ -161,9 +161,9 @@ impl CpuUsage {
 
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SharedLibs {
-    resident: u32,
-    data: u32,
-    linkedit: u32,
+    resident: u64,
+    data: u64,
+    linkedit: u64,
 }
 
 // SharedLibs: 374M resident, 84M data, 27M linkedit.
@@ -174,11 +174,11 @@ impl SharedLibs {
         )?;
         let caps = re.captures(str).context("shared libs")?;
         let resident = replace_unit(caps.get(1).context("resident")?.as_str())
-            .parse::<u32>()?;
+            .parse::<u64>()?;
         let data = replace_unit(caps.get(2).context("data")?.as_str())
-            .parse::<u32>()?;
+            .parse::<u64>()?;
         let linkedit = replace_unit(caps.get(3).context("linkedit")?.as_str())
-            .parse::<u32>()?;
+            .parse::<u64>()?;
         Ok(SharedLibs {
             resident,
             data,
@@ -189,10 +189,10 @@ impl SharedLibs {
 
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MemRegions {
-    total: u32,
-    resident: u32,
-    private: u32,
-    shared: u32,
+    total: u64,
+    resident: u64,
+    private: u64,
+    shared: u64,
 }
 
 // MemRegions: 380552 total, 1947M resident, 80M private, 2638M shared.
@@ -203,13 +203,13 @@ impl MemRegions {
         )?;
         let caps = re.captures(str).context("mem regions")?;
 
-        let total = caps.get(1).context("total")?.as_str().parse::<u32>()?;
+        let total = caps.get(1).context("total")?.as_str().parse::<u64>()?;
         let resident = replace_unit(caps.get(2).context("resident")?.as_str())
-            .parse::<u32>()?;
+            .parse::<u64>()?;
         let private = replace_unit(caps.get(3).context("private")?.as_str())
-            .parse::<u32>()?;
+            .parse::<u64>()?;
         let shared = replace_unit(caps.get(4).context("shared")?.as_str())
-            .parse::<u32>()?;
+            .parse::<u64>()?;
         Ok(MemRegions {
             total,
             resident,
@@ -221,10 +221,10 @@ impl MemRegions {
 
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub struct PhysMem {
-    used: u32,
-    wired: u32,
-    compressor: u32,
-    unused: u32,
+    used: u64,
+    wired: u64,
+    compressor: u64,
+    unused: u64,
 }
 
 // PhysMem: 15G used (1930M wired, 7883M compressor), 80M unused.
@@ -236,14 +236,14 @@ impl PhysMem {
         let caps = re.captures(str).context("phys mem")?;
 
         let used = replace_unit(caps.get(1).context("used")?.as_str())
-            .parse::<u32>()?;
+            .parse::<u64>()?;
         let wired = replace_unit(caps.get(2).context("wired")?.as_str())
-            .parse::<u32>()?;
+            .parse::<u64>()?;
         let compressor =
             replace_unit(caps.get(3).context("compressor")?.as_str())
-                .parse::<u32>()?;
+                .parse::<u64>()?;
         let unused = replace_unit(caps.get(4).context("unused")?.as_str())
-            .parse::<u32>()?;
+            .parse::<u64>()?;
         Ok(PhysMem {
             used,
             wired,
@@ -257,8 +257,8 @@ impl PhysMem {
 pub struct Vm {
     vsize: u64,
     framework_vsize: u64,
-    swapins: u32,
-    swapouts: u32,
+    swapins: u64,
+    swapouts: u64,
 }
 
 // VM: 211T vsize, 4773M framework vsize, 1964944(12) swapins, 2631760(0) swapouts.
@@ -274,9 +274,9 @@ impl Vm {
             replace_unit(caps.get(2).context("framework vsize")?.as_str())
                 .parse::<u64>()?;
         let swapins =
-            caps.get(3).context("swapins")?.as_str().parse::<u32>()?;
+            caps.get(3).context("swapins")?.as_str().parse::<u64>()?;
         let swapouts =
-            caps.get(4).context("swapouts")?.as_str().parse::<u32>()?;
+            caps.get(4).context("swapouts")?.as_str().parse::<u64>()?;
         Ok(Vm {
             vsize,
             framework_vsize,
@@ -288,10 +288,10 @@ impl Vm {
 
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Networks {
-    packets_in: u32,
-    packets_out: u32,
-    in_total: u32,
-    out_total: u32,
+    packets_in: u64,
+    packets_out: u64,
+    in_total: u64,
+    out_total: u64,
 }
 
 // Networks: packets: 106614114/58G in, 98394391/46G out.
@@ -302,17 +302,17 @@ impl Networks {
         )?;
         let caps = re.captures(str).context("networks")?;
         let packets_in =
-            caps.get(1).context("packets in")?.as_str().parse::<u32>()?;
+            caps.get(1).context("packets in")?.as_str().parse::<u64>()?;
         let packets_out = caps
             .get(3)
             .context("packets out")?
             .as_str()
-            .parse::<u32>()?;
+            .parse::<u64>()?;
         let in_total = replace_unit(caps.get(2).context("in total")?.as_str())
-            .parse::<u32>()?;
+            .parse::<u64>()?;
         let out_total =
             replace_unit(caps.get(4).context("out total")?.as_str())
-                .parse::<u32>()?;
+                .parse::<u64>()?;
         Ok(Networks {
             packets_in,
             packets_out,
@@ -324,10 +324,10 @@ impl Networks {
 
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Disks {
-    read: u32,
-    written: u32,
-    read_total: u32,
-    written_total: u32,
+    read: u64,
+    written: u64,
+    read_total: u64,
+    written_total: u64,
 }
 
 // Disks: 48697305/927G read, 34308023/523G written.
@@ -337,15 +337,15 @@ impl Disks {
             r"Disks: (\d+)\/(\d+[M|G|T]) read, (\d+)\/(\d+[M|G|T]) written",
         )?;
         let caps = re.captures(str).context("disks")?;
-        let read = caps.get(1).context("read")?.as_str().parse::<u32>()?;
+        let read = caps.get(1).context("read")?.as_str().parse::<u64>()?;
         let written =
-            caps.get(3).context("written")?.as_str().parse::<u32>()?;
+            caps.get(3).context("written")?.as_str().parse::<u64>()?;
         let read_total =
             replace_unit(caps.get(2).context("read total")?.as_str())
-                .parse::<u32>()?;
+                .parse::<u64>()?;
         let written_total =
             replace_unit(caps.get(4).context("written total")?.as_str())
-                .parse::<u32>()?;
+                .parse::<u64>()?;
         Ok(Disks {
             read,
             written,
