@@ -356,7 +356,8 @@ impl Disks {
 }
 
 fn replace_unit(s: &str) -> String {
-    s.replace('M', "000")
-        .replace('G', "000000")
-        .replace('T', "000000000")
+    s.replace('K', "000")
+        .replace('M', "000000")
+        .replace('G', "000000000")
+        .replace('T', "000000000000")
 }
