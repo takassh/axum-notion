@@ -1,4 +1,7 @@
-use axum::{routing::get, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 
 use repository::Repository;
 use tower_http::cors::CorsLayer;
@@ -18,6 +21,7 @@ pub mod not_found;
 pub mod page;
 pub mod post;
 mod response;
+pub mod runtime;
 pub mod top;
 mod util;
 
@@ -73,6 +77,9 @@ pub async fn serve(repository: Repository) -> anyhow::Result<Router> {
         .route("/receive", get(receive))
         .with_state(repository.clone());
 
+    // runtime
+    let runtime_router = Router::new().route("/", post(runtime::post_code));
+
     let router = Router::new()
         .merge(
             SwaggerUi::new("/swagger-ui")
@@ -86,6 +93,7 @@ pub async fn serve(repository: Repository) -> anyhow::Result<Router> {
         .nest("/blocks", block_router)
         .nest("/events", event_router)
         .nest("/posts", post_router)
+        .nest("/runtime", runtime_router)
         .layer(CorsLayer::new().allow_origin(origins))
         .fallback(not_found::get_404);
 
