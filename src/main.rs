@@ -91,7 +91,7 @@ fn init_log(store: SecretStore) -> anyhow::Result<()> {
         .unwrap();
 
     let filter = EnvFilter::builder()
-        .with_default_directive(LevelFilter::DEBUG.into())
+        .with_default_directive(LevelFilter::INFO.into())
         .parse("")
         .unwrap();
 
@@ -100,8 +100,6 @@ fn init_log(store: SecretStore) -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::Layer::new())
         .with(layer)
         .init();
-
-    tracing_subscriber::fmt::init();
 
     tokio::spawn(task);
 

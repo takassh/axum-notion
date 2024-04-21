@@ -1,5 +1,5 @@
 [grafana]
-loki = false
+loki = true
 host = "logs-prod-020.grafana.net"
 
 [notion]
