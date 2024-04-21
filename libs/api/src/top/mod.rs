@@ -57,15 +57,13 @@ async fn handle_send_socket(socket: WebSocket, repo: Repository) {
             Message::Text(text) => {
                 let t = top.set(&text);
 
-                let Ok(t) = t else {
+                let Ok(_) = t else {
                     error!(
                         task = "top.set",
                         error = t.unwrap_err().to_string()
                     );
                     continue;
                 };
-
-                info!(task = "receive message", t = format!("{:?}", t));
             }
             _ => {}
         }

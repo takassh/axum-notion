@@ -26,7 +26,6 @@ pub fn spawn_service_to_get_blocks(
     vec![sender_handler, receiver_handler]
 }
 
-#[tracing::instrument]
 fn sender(
     state: Arc<State>,
     tx: Sender<Message>,
@@ -123,7 +122,6 @@ async fn scan_block(state: Arc<State>, mut block: Block) -> Block {
     return block;
 }
 
-#[tracing::instrument]
 async fn get_children(state: Arc<State>, parent_block_id: &str) -> Vec<Block> {
     let mut next_cursor: Option<String> = None;
     let mut blocks = vec![];
@@ -152,6 +150,7 @@ async fn get_children(state: Arc<State>, parent_block_id: &str) -> Vec<Block> {
             }
             Err(e) => {
                 error!(task = "retrieve block children", error = e.to_string());
+                break;
             }
         }
     }
@@ -159,7 +158,6 @@ async fn get_children(state: Arc<State>, parent_block_id: &str) -> Vec<Block> {
     blocks
 }
 
-#[tracing::instrument]
 fn receiver(
     state: Arc<State>,
     mut rx: Receiver<Message>,

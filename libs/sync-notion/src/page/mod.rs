@@ -27,7 +27,6 @@ pub fn spawn_service_to_get_pages(
     vec![sender_handler, receiver_handler]
 }
 
-#[tracing::instrument]
 fn sender(
     state: Arc<State>,
     tx: Sender<Vec<Page>>,
@@ -70,7 +69,6 @@ fn sender(
     })
 }
 
-#[tracing::instrument]
 async fn scan_all_pages(state: Arc<State>, page_id: &str) -> Vec<Page> {
     let mut next_cursor = None;
     let mut pages = vec![];
@@ -114,7 +112,6 @@ async fn scan_all_pages(state: Arc<State>, page_id: &str) -> Vec<Page> {
     pages
 }
 
-#[tracing::instrument]
 fn receiver(
     state: Arc<State>,
     mut rx: Receiver<Vec<Page>>,

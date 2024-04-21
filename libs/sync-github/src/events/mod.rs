@@ -22,7 +22,6 @@ pub fn spawn_service_to_get_events(
     vec![sender_handler, receiver_handler]
 }
 
-#[tracing::instrument]
 fn sender(
     state: Arc<State>,
     tx: Sender<Vec<Event>>,
@@ -79,7 +78,6 @@ fn sender(
     })
 }
 
-#[tracing::instrument]
 fn receiver(
     state: Arc<State>,
     mut rx: Receiver<Vec<Event>>,
