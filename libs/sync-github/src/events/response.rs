@@ -188,7 +188,9 @@ pub struct Permissions {
 pub struct ReactionRollup {
     pub url: String,
     pub total_count: i64,
+    #[serde(rename = "+1")]
     pub plus_one: i64,
+    #[serde(rename = "-1")]
     pub minus_one: i64,
     pub laugh: i64,
     pub confused: i64,
