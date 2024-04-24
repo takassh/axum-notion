@@ -139,8 +139,6 @@ pub struct Comment {
     pub node_id: String,
     pub url: String,
     pub body: String,
-    pub body_text: String,
-    pub body_html: String,
     pub html_url: String,
     pub user: Option<SimpleUser>,
     pub created_at: DateTime<Utc>,
