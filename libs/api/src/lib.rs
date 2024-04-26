@@ -29,6 +29,7 @@ mod response;
 pub mod runtime;
 pub mod top;
 mod util;
+pub mod ws;
 
 pub enum ApiError {
     AuthError(String),
@@ -157,6 +158,12 @@ pub async fn serve(
         .route("/receive", get(receive))
         .with_state(repository.clone());
 
+    // posts
+    let ws_router = Router::new()
+        .route("/", get(ws::ws))
+        .fallback(not_found::get_404)
+        .with_state(state.clone());
+
     // runtime
     // let _ = Router::new().route("/", post(runtime::post_code));
 
@@ -174,6 +181,7 @@ pub async fn serve(
         .nest("/posts", post_router)
         // .nest("/runtime", runtime_router)
         .route_layer(middleware::from_fn(auth::auth))
+        .nest("/ws", ws_router)
         .nest("/top", top_router)
         .layer(CorsLayer::new().allow_origin(origins))
         .fallback(not_found::get_404);

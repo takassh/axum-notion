@@ -10,7 +10,7 @@ pub struct GetPagesParam {
     pub pagination: Pagination,
 }
 
-#[derive(Serialize, Deserialize, ToSchema, IntoParams)]
+#[derive(Serialize, Deserialize, ToSchema, IntoParams, Debug)]
 pub struct GenerateCoverImageRequest {
     pub prompt: String,
 }
