@@ -168,14 +168,14 @@ pub async fn serve(
         .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
         .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
         .route("/healthz", get(healthz::get_health))
-        .nest("/top", top_router)
         .nest("/pages", page_router)
         .nest("/blocks", block_router)
         .nest("/events", event_router)
         .nest("/posts", post_router)
         // .nest("/runtime", runtime_router)
+        .route_layer(middleware::from_fn(auth::auth))
+        .nest("/top", top_router)
         .layer(CorsLayer::new().allow_origin(origins))
-        .layer(middleware::from_fn(auth::auth))
         .fallback(not_found::get_404);
 
     Ok(router)
