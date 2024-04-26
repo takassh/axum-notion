@@ -153,8 +153,10 @@ pub async fn generate_cover_image(
                 cover: Some(File::External {
                     external: ExternalFile {
                         url: format!(
-                            "{}/{}",
-                            state.config.aws.s3_url, file_name
+                            "{}/{}?t={}",
+                            state.config.aws.s3_url,
+                            file_name,
+                            chrono::Utc::now().timestamp()
                         ),
                     },
                 }),

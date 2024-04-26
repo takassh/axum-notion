@@ -31,3 +31,4 @@ reqwest = "0.12.4"
 notion-client = "0.1.11"
 aws-sdk-s3 = { version = "1.24.0", features = ["rt-tokio"] }
 aws-config = { version = "1.2.1", features = ["behavior-version-latest"] }
+chrono = "0.4.38"
