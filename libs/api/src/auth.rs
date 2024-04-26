@@ -1,11 +1,9 @@
-
 use axum::{
-    extract::{Request},
+    extract::Request,
     http::{self},
-    middleware::{Next},
-    response::{Response},
+    middleware::Next,
+    response::Response,
 };
-
 
 use crate::{ApiError, ACCEPT_API_KEY};
 

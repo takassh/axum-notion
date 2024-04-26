@@ -1,7 +1,6 @@
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Body, Response};
 
-
 use anyhow::ensure;
 
 #[derive(Clone, Debug)]
@@ -18,10 +17,7 @@ impl Client {
         base_url: String,
     ) -> anyhow::Result<Self> {
         let mut headers = HeaderMap::new();
-        headers.insert(
-            "Accept",
-            HeaderValue::from_str("*/*").unwrap(),
-        );
+        headers.insert("Accept", HeaderValue::from_str("*/*").unwrap());
         headers.insert(
             "Authorization",
             HeaderValue::from_str(format!("Bearer {}", token).as_str())

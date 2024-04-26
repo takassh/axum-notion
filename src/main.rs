@@ -24,7 +24,7 @@ async fn main(
     init_log(secret_store.clone())?;
 
     let notion_token = secret_store.get("NOTION_TOKEN").unwrap();
-    
+
     let github_token = secret_store.get("GITHUB_TOKEN").unwrap();
 
     let cloudflare_token = secret_store.get("CLOUDFLARE_TOKEN").unwrap();
