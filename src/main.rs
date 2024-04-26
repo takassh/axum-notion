@@ -17,8 +17,8 @@ use tracing_subscriber::{
 #[shuttle_runtime::main]
 async fn main(
     #[Secrets] secret_store: SecretStore,
-    // #[shuttle_shared_db::Postgres(local_uri = "{secrets.LOCAL_DATABASE_URL}")]
-    #[shuttle_shared_db::Postgres()] conn_string: String,
+    #[shuttle_shared_db::Postgres(local_uri = "{secrets.LOCAL_DATABASE_URL}")]
+    conn_string: String,
     #[shuttle_persist::Persist] persist: PersistInstance,
 ) -> shuttle_axum::ShuttleAxum {
     init_log(secret_store.clone())?;

@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 
 use aws_sdk_s3::primitives::ByteStream;
 
@@ -6,9 +6,13 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use notion_client::endpoints::pages::update::request::UpdatePagePropertiesRequest;
+use entity::prelude::*;
 use notion_client::objects::file::ExternalFile;
 use notion_client::objects::file::File;
+use notion_client::{
+    endpoints::pages::update::request::UpdatePagePropertiesRequest,
+    objects::parent::Parent,
+};
 
 pub mod request;
 pub mod response;
@@ -160,6 +164,38 @@ pub async fn generate_cover_image(
         .await
         .context("failed to update page properties")
         .into_response("502-009")?;
+
+    let page = state
+        .notion
+        .pages
+        .retrieve_a_page(&id, None)
+        .await
+        .context("failed to retrieve a page")
+        .into_response("502-010")?;
+
+    let json = serde_json::to_string_pretty(&page)
+        .context("failed to serialize page")
+        .into_response("502-010")?;
+    let parent_id = match page.parent {
+        Parent::DatabaseId { database_id } => database_id,
+        _ => Err(anyhow!("parent is not database id"))
+            .into_response("502-010")?,
+    };
+    let model = PageEntity {
+        notion_page_id: page.id,
+        notion_database_id: parent_id,
+        contents: json,
+        created_at: page.created_time,
+        ..Default::default()
+    };
+
+    state
+        .repo
+        .page
+        .save(model)
+        .await
+        .context("failed to save page")
+        .into_response("502-010")?;
 
     Ok(())
 }
