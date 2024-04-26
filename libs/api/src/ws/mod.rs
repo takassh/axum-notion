@@ -11,6 +11,8 @@ use axum::{
     response::Response,
 };
 
+use axum_extra::headers;
+use axum_extra::TypedHeader;
 use entity::prelude::*;
 use futures_util::{SinkExt, StreamExt};
 use notion_client::{
@@ -51,8 +53,15 @@ enum ActionResponse {
 
 pub async fn ws(
     ws: WebSocketUpgrade,
+    user_agent: Option<TypedHeader<headers::UserAgent>>,
     State(state): State<ApiState>,
 ) -> Response {
+    let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
+        user_agent.to_string()
+    } else {
+        String::from("Unknown browser")
+    };
+    info!("`{user_agent}` connected.");
     ws.on_upgrade(|socket| handler(socket, state))
 }
 

@@ -72,8 +72,15 @@ async fn handle_send_socket(socket: WebSocket, repo: Repository) {
 
 pub async fn receive(
     ws: WebSocketUpgrade,
+    user_agent: Option<TypedHeader<headers::UserAgent>>,
     State(repo): State<Repository>,
 ) -> Response {
+    let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
+        user_agent.to_string()
+    } else {
+        String::from("Unknown browser")
+    };
+    info!("`{user_agent}` connected.");
     ws.on_upgrade(|socket| handle_receive_socket(socket, repo))
 }
 
