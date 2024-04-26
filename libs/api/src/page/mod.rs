@@ -1,15 +1,7 @@
-
-
-
-
 use axum::{
     extract::{Path, Query, State},
     Json,
 };
-
-
-
-
 
 pub mod request;
 pub mod response;

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-
 use anyhow::anyhow;
 use anyhow::Context;
 use aws_sdk_s3::primitives::ByteStream;
@@ -43,6 +42,13 @@ enum Action {
     },
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "action")]
+enum ActionResponse {
+    Auth { message: String },
+    GenerateCoverImage { message: String },
+}
+
 pub async fn ws(
     ws: WebSocketUpgrade,
     State(state): State<ApiState>,
@@ -78,27 +84,29 @@ async fn handler(socket: WebSocket, state: ApiState) {
                         let mut authorized = authorized.lock().await;
                         *authorized = authorize(&api_key);
 
-                        if *authorized {
-                            let _ = sender
-                                .send(Message::Text(
-                                    "Authenticated".to_string(),
-                                ))
-                                .await;
+                        let message = if *authorized {
+                            "authenticated".to_string()
                         } else {
-                            let _ = sender
-                                .send(Message::Text(
-                                    "Invalid Token".to_string(),
-                                ))
-                                .await;
-                        }
+                            "invalid token".to_string()
+                        };
+
+                        let response =
+                            serde_json::to_string(&ActionResponse::Auth {
+                                message,
+                            })
+                            .unwrap();
+
+                        let _ = sender.send(Message::Text(response)).await;
                     }
                     Ok(Action::GenerateCoverImage { id, body }) => {
                         {
                             if !*authorized.lock().await {
                                 let _ = sender
-                                    .send(Message::Text(
-                                        "Not Allowed".to_string(),
-                                    ))
+                                    .send(Message::Text(serde_json::to_string(
+                                        &ActionResponse::GenerateCoverImage {
+                                            message: "not allowed".to_string(),
+                                        },
+                                    ).unwrap()))
                                     .await;
                                 continue;
                             }
@@ -106,7 +114,29 @@ async fn handler(socket: WebSocket, state: ApiState) {
 
                         if id.is_empty() {
                             let _ = sender
-                                .send(Message::Text("Invalid ID".to_string()))
+                                .send(Message::Text(
+                                    serde_json::to_string(
+                                        &ActionResponse::GenerateCoverImage {
+                                            message: "invalid id".to_string(),
+                                        },
+                                    )
+                                    .unwrap(),
+                                ))
+                                .await;
+                            continue;
+                        }
+
+                        if body.prompt.is_empty() {
+                            let _ = sender
+                                .send(Message::Text(
+                                    serde_json::to_string(
+                                        &ActionResponse::GenerateCoverImage {
+                                            message: "invalid prompt"
+                                                .to_string(),
+                                        },
+                                    )
+                                    .unwrap(),
+                                ))
                                 .await;
                             continue;
                         }
@@ -114,16 +144,21 @@ async fn handler(socket: WebSocket, state: ApiState) {
                         let result =
                             generate_cover_image(&state, id, body).await;
 
-                        let result = match result {
+                        let message = match result {
                             Ok(_) => "success".to_string(),
                             Err(e) => e.to_string(),
                         };
 
-                        let _ = sender.send(Message::Text(result)).await;
+                        let response = serde_json::to_string(
+                            &ActionResponse::GenerateCoverImage { message },
+                        )
+                        .unwrap();
+
+                        let _ = sender.send(Message::Text(response)).await;
                     }
                     _ => {
                         let _ = sender
-                            .send(Message::Text("Invalid Method".to_string()))
+                            .send(Message::Text("invalid method".to_string()))
                             .await;
                     }
                 }
