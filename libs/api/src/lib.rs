@@ -1,17 +1,25 @@
-use axum::{routing::get, Router};
+use axum::{middleware, routing::get, routing::post, Router};
 
 use repository::Repository;
+use tokio::sync::OnceCell;
+use toml::{map::Map, Value};
 use tower_http::cors::CorsLayer;
 use tracing::info;
+use util::workspace_dir;
 use utoipa::OpenApi;
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 use utoipauto::utoipauto;
 
-use crate::top::{receive, send};
+use crate::{
+    clients::cloudflare,
+    top::{receive, send},
+};
 
+mod auth;
 pub mod block;
+mod clients;
 pub mod event;
 pub mod healthz;
 pub mod not_found;
@@ -23,11 +31,50 @@ pub mod top;
 mod util;
 
 pub enum ApiError {
+    AuthError(String),
     ClientError(String),
     ServerError(String),
 }
 
-pub async fn serve(repository: Repository) -> anyhow::Result<Router> {
+#[derive(Clone, Debug)]
+pub struct ApiState {
+    repo: Repository,
+    notion: notion_client::endpoints::Client,
+    cloudflare: cloudflare::Client,
+    s3: aws_sdk_s3::Client,
+    config: Config,
+}
+
+#[derive(Clone, Debug)]
+pub struct Config {
+    pub cloudflare: Cloudflare,
+    pub aws: AWS,
+}
+#[derive(Clone, Debug)]
+pub struct Cloudflare {
+    pub base_url: String,
+    pub generate_ai_path: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct AWS {
+    pub bucket: String,
+    pub s3_url: String,
+}
+
+static ACCEPT_API_KEY: OnceCell<String> = OnceCell::const_new();
+
+#[allow(clippy::too_many_arguments)]
+pub async fn serve(
+    repository: Repository,
+    notion_client: notion_client::endpoints::Client,
+    s3: aws_sdk_s3::Client,
+    cloudflare_token: String,
+    cloudflare_account_id: String,
+    bucket: String,
+    config_name: &str,
+    accept_api_key: String,
+) -> anyhow::Result<Router> {
     #[utoipauto(paths = "./libs/api/src")]
     #[derive(OpenApi)]
     #[openapi(
@@ -39,14 +86,50 @@ pub async fn serve(repository: Repository) -> anyhow::Result<Router> {
 
     info!(task = "start api serving");
 
-    let origins = ["http://localhost:3000".parse().unwrap()];
+    ACCEPT_API_KEY.set(accept_api_key).unwrap();
 
+    let config = load_config(config_name)?;
+    let cloudflare = Cloudflare {
+        base_url: config["cloudflare"]["base_url"]
+            .as_str()
+            .unwrap()
+            .to_string(),
+        generate_ai_path: config["cloudflare"]["generate_ai_path"]
+            .as_str()
+            .unwrap()
+            .to_string(),
+    };
+
+    let aws = AWS {
+        bucket,
+        s3_url: config["aws"]["s3_url"].as_str().unwrap().to_string(),
+    };
+
+    let cloudflare_client = cloudflare::Client::new(
+        cloudflare_token,
+        cloudflare_account_id,
+        cloudflare.base_url.clone(),
+    )?;
+
+    let state = ApiState {
+        repo: repository.clone(),
+        notion: notion_client,
+        cloudflare: cloudflare_client,
+        s3,
+        config: Config { cloudflare, aws },
+    };
+
+    let origins = ["http://localhost:3000".parse().unwrap()];
     // pages
     let page_router = Router::new()
         .route("/", get(page::get_pages))
         .route("/:id", get(page::get_page))
+        .route(
+            "/:id/generate-cover-image",
+            post(page::generate_cover_image),
+        )
         .fallback(not_found::get_404)
-        .with_state(repository.clone());
+        .with_state(state.clone());
 
     // blocks
     let block_router = Router::new()
@@ -92,7 +175,17 @@ pub async fn serve(repository: Repository) -> anyhow::Result<Router> {
         .nest("/posts", post_router)
         // .nest("/runtime", runtime_router)
         .layer(CorsLayer::new().allow_origin(origins))
+        .layer(middleware::from_fn(auth::auth))
         .fallback(not_found::get_404);
 
     Ok(router)
+}
+
+fn load_config(config_name: &str) -> anyhow::Result<Map<String, Value>> {
+    let workspace_dir = workspace_dir();
+    let config = std::fs::read_to_string(workspace_dir.join(config_name))?;
+
+    let config = toml::from_str::<Map<String, Value>>(&config)?;
+
+    Ok(config)
 }

@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process::id;
 
 use anyhow::Context;
+use aws_sdk_s3::config::Credentials;
 use repository::Repository;
 use shuttle_persist::PersistInstance;
 use shuttle_runtime::{SecretStore, Secrets};
@@ -16,30 +17,63 @@ use tracing_subscriber::{
 #[shuttle_runtime::main]
 async fn main(
     #[Secrets] secret_store: SecretStore,
-    #[shuttle_shared_db::Postgres(local_uri = "{secrets.LOCAL_DATABASE_URL}")]
-    conn_string: String,
+    // #[shuttle_shared_db::Postgres(local_uri = "{secrets.LOCAL_DATABASE_URL}")]
+    #[shuttle_shared_db::Postgres()] conn_string: String,
     #[shuttle_persist::Persist] persist: PersistInstance,
 ) -> shuttle_axum::ShuttleAxum {
     init_log(secret_store.clone())?;
 
-    let notion_token = secret_store
-        .get("NOTION_TOKEN")
-        .context("NOTION_TOKEN was not found")?;
+    let notion_token = secret_store.get("NOTION_TOKEN").unwrap();
+    
+    let github_token = secret_store.get("GITHUB_TOKEN").unwrap();
 
-    let github_token = secret_store
-        .get("GITHUB_TOKEN")
-        .context("GITHUB_TOKEN was not found")?;
+    let cloudflare_token = secret_store.get("CLOUDFLARE_TOKEN").unwrap();
+    let cloudflare_account_id =
+        secret_store.get("CLOUDFLARE_ACCOUNT_ID").unwrap();
 
-    let config = secret_store.get("CONFIG").context("CONFIG was not found")?;
+    let access_key_id = secret_store.get("AWS_ACCESS_KEY_ID").unwrap();
+    let secret_access_key = secret_store.get("AWS_SECRET_ACCESS_KEY").unwrap();
+    let aws_url = secret_store.get("AWS_URL").unwrap();
+    let bucket = secret_store.get("BUCKET").unwrap();
 
+    let accept_api_key = secret_store.get("ACCEPTABLE_API_KEY").unwrap();
+
+    let config = secret_store.get("CONFIG").unwrap();
     let config_name = &format!("Config{}", config);
 
     let repository = Repository::new(&conn_string).await?.with_cache(persist);
 
+    let notion_client =
+        notion_client::endpoints::Client::new(notion_token.clone())
+            .context("failed to build notion client")?;
+
+    let credentials =
+        Credentials::new(access_key_id, secret_access_key, None, None, "");
+    let cfg = aws_config::from_env()
+        .endpoint_url(aws_url)
+        .region("auto")
+        .credentials_provider(credentials)
+        .load()
+        .await;
+    let s3 = aws_sdk_s3::Client::new(&cfg);
+
     let (notion, github, router) = join!(
-        sync_notion::serve(repository.clone(), notion_token),
+        sync_notion::serve(
+            repository.clone(),
+            notion_client.clone(),
+            config_name
+        ),
         sync_github::serve(repository.clone(), config_name, &github_token),
-        api::serve(repository)
+        api::serve(
+            repository,
+            notion_client,
+            s3,
+            cloudflare_token,
+            cloudflare_account_id,
+            bucket,
+            config_name,
+            accept_api_key
+        )
     );
 
     let _ = notion.context("failed to build notion service")?;

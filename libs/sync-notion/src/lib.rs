@@ -35,13 +35,12 @@ impl State {
 
 pub async fn serve(
     repository: Repository,
-    notion_token: String,
+    client: notion_client::endpoints::Client,
+    config_name: &str,
 ) -> anyhow::Result<Vec<JoinHandle<anyhow::Result<()>>>> {
     info!(task = "start notion sync");
 
-    let client = Client::new(notion_token)?;
-
-    let config = load_config()?;
+    let config = load_config(config_name)?;
 
     let pause_secs = config
         .get("notion")
@@ -59,9 +58,9 @@ pub async fn serve(
     Ok(page_handles.into_iter().chain(block_handles).collect())
 }
 
-fn load_config() -> anyhow::Result<Map<String, Value>> {
+fn load_config(config_name: &str) -> anyhow::Result<Map<String, Value>> {
     let workspace_dir = workspace_dir();
-    let config = std::fs::read_to_string(workspace_dir.join("Config.toml"))?;
+    let config = std::fs::read_to_string(workspace_dir.join(config_name))?;
 
     let config = toml::from_str::<Map<String, Value>>(&config)?;
 

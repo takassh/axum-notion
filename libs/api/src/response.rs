@@ -12,6 +12,10 @@ impl IntoResponse for ApiError {
         let mut _message = "".to_string();
 
         match self {
+            ApiError::AuthError(message) => {
+                status_code = StatusCode::UNAUTHORIZED;
+                _message = message;
+            }
             ApiError::ClientError(message) => {
                 status_code = StatusCode::BAD_REQUEST;
                 _message = message;

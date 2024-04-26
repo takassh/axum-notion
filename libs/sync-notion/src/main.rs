@@ -21,9 +21,16 @@ async fn main() -> anyhow::Result<()> {
         secrets.get("LOCAL_DATABASE_URL").unwrap().as_str().unwrap();
     let notion_token = secrets.get("NOTION_TOKEN").unwrap().as_str().unwrap();
 
+    let config = secrets.get("CONFIG").context("CONFIG was not found")?;
+    let config_name = &format!("Config{}", config);
+
     let repository = Repository::new(conn_string).await?;
 
-    let handles = serve(repository, notion_token.to_string()).await?;
+    let notion_client =
+        notion_client::endpoints::Client::new(notion_token.to_string())
+            .unwrap();
+
+    let handles = serve(repository, notion_client, config_name).await?;
 
     let _ = join_all(handles).await;
 

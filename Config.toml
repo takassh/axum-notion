@@ -9,3 +9,10 @@ pause_secs = 2
 base_url = "https://api.github.com"
 pause_secs = 2
 username = "takassh"
+
+[cloudflare]
+base_url = "https://api.cloudflare.com"
+generate_ai_path = "ai/run/@cf/bytedance/stable-diffusion-xl-lightning"
+
+[aws]
+s3_url = "https://bucket.takassh.com"
