@@ -148,7 +148,7 @@ pub async fn serve(
             "/:id/generate-cover-image-from-plain-texts",
             post(page::generate_cover_image_from_plain_texts),
         )
-        .route("/:id/summerize", post(page::summarize))
+        .route("/:id/generate-summerize", post(page::generate_summarize))
         .fallback(not_found::get_404)
         .with_state(state.clone());
 

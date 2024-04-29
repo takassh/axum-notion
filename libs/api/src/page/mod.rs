@@ -148,7 +148,7 @@ pub async fn generate_cover_image_from_plain_texts(
         ("id", description = "page id"),
     )
 )]
-pub async fn summarize(
+pub async fn generate_summarize(
     State(state): State<ApiState>,
     Path(id): Path<String>,
     Json(body): Json<GenerateImageFromText>,
