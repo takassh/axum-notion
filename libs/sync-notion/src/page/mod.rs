@@ -86,16 +86,12 @@ fn sender(
 
             let results = join_all(join_handles).await;
             let mut new_page_ids = HashSet::new();
-            for result in results {
-                if let Ok(result) = result {
-                    new_page_ids.extend(result);
-                }
+            for result in results.into_iter().flatten() {
+                new_page_ids.extend(result);
             }
 
-            let page_ids: HashSet<String> = all_page_ids
-                .difference(&new_page_ids)
-                .map(|v| v.clone())
-                .collect();
+            let page_ids: HashSet<String> =
+                all_page_ids.difference(&new_page_ids).cloned().collect();
             let result = tx
                 .send(Message::Delete {
                     page_ids: page_ids.clone(),
