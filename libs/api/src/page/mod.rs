@@ -6,13 +6,15 @@ use axum::{
 pub mod request;
 pub mod response;
 
-use crate::ApiState;
+use crate::{
+    clients::cloudflare::{GenerateImageFromText, GenerateImageRequest},
+    ApiState,
+};
 use crate::{
     response::{ApiResponse, IntoApiResponse},
     ws,
 };
 
-use self::request::GenerateCoverImageRequest;
 use self::{
     request::GetPagesParam,
     response::{GetPageResponse, GetPagesResponse, Page},
@@ -103,11 +105,57 @@ pub async fn get_page(
 pub async fn generate_cover_image(
     State(state): State<ApiState>,
     Path(id): Path<String>,
-    Json(body): Json<GenerateCoverImageRequest>,
+    Json(body): Json<GenerateImageRequest>,
 ) -> ApiResponse<()> {
     ws::generate_cover_image(&state, id, body)
         .await
         .into_response("502-010")?;
+
+    Ok(())
+}
+
+/// Generate a cover image from plain texts
+#[utoipa::path(
+    post,
+    path = "/pages/:id/generate-cover-image-from-plain-texts",
+    responses(
+        (status = 200, description = "Generate a cover image for a page successfully", body = [GetPagesResponse])
+    ),
+    params(
+        ("id", description = "page id"),
+    )
+)]
+pub async fn generate_cover_image_from_plain_texts(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    Json(body): Json<GenerateImageFromText>,
+) -> ApiResponse<()> {
+    ws::generate_cover_image_from_plain_text(&state, id, body.text)
+        .await
+        .into_response("502-010")?;
+
+    Ok(())
+}
+
+/// Generate a cover image from plain texts
+#[utoipa::path(
+    post,
+    path = "/pages/:id/summarize",
+    responses(
+        (status = 200, description = "Generate a cover image for a page successfully", body = [GetPagesResponse])
+    ),
+    params(
+        ("id", description = "page id"),
+    )
+)]
+pub async fn summarize(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    Json(body): Json<GenerateImageFromText>,
+) -> ApiResponse<()> {
+    ws::summarize(&state, id, body.text)
+        .await
+        .into_response("502-011")?;
 
     Ok(())
 }

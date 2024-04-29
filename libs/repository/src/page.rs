@@ -105,4 +105,15 @@ impl PageRepository {
 
         Ok(())
     }
+
+    pub async fn delete(&self, page_id: &str) -> anyhow::Result<()> {
+        page::Entity::delete(page::ActiveModel {
+            notion_page_id: ActiveValue::Set(page_id.to_string()),
+            ..Default::default()
+        })
+        .exec(&self.db)
+        .await?;
+
+        Ok(())
+    }
 }

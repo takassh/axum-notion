@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use block::BlockRepository;
 use event::EventRepository;
 use migration::Migrator;
@@ -33,6 +35,7 @@ impl Repository {
         opt.max_connections(5)
             .min_connections(1)
             .sqlx_logging(true)
+            .connect_timeout(Duration::from_millis(1000))
             .sqlx_logging_level(log::LevelFilter::Debug);
 
         let db = Database::connect(opt).await?;

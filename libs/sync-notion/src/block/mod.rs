@@ -149,7 +149,11 @@ async fn get_children(state: Arc<State>, parent_block_id: &str) -> Vec<Block> {
                 }
             }
             Err(e) => {
-                error!(task = "retrieve block children", error = e.to_string());
+                error!(
+                    task = "retrieve block children",
+                    parent_block_id,
+                    error = e.to_string()
+                );
                 break;
             }
         }

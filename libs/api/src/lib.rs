@@ -54,7 +54,10 @@ pub struct Config {
 #[derive(Clone, Debug)]
 pub struct Cloudflare {
     pub base_url: String,
-    pub generate_ai_path: String,
+    pub generate_image_ai_path: String,
+    pub generate_text_ai_path: String,
+    pub translation_ai_path: String,
+    pub summarization_ai_path: String,
 }
 
 #[derive(Clone, Debug)]
@@ -95,7 +98,19 @@ pub async fn serve(
             .as_str()
             .unwrap()
             .to_string(),
-        generate_ai_path: config["cloudflare"]["generate_ai_path"]
+        generate_image_ai_path: config["cloudflare"]["generate_image_ai_path"]
+            .as_str()
+            .unwrap()
+            .to_string(),
+        generate_text_ai_path: config["cloudflare"]["generate_text_ai_path"]
+            .as_str()
+            .unwrap()
+            .to_string(),
+        translation_ai_path: config["cloudflare"]["translation_ai_path"]
+            .as_str()
+            .unwrap()
+            .to_string(),
+        summarization_ai_path: config["cloudflare"]["summarization_ai_path"]
             .as_str()
             .unwrap()
             .to_string(),
@@ -129,6 +144,11 @@ pub async fn serve(
             "/:id/generate-cover-image",
             post(page::generate_cover_image),
         )
+        .route(
+            "/:id/generate-cover-image-from-plain-texts",
+            post(page::generate_cover_image_from_plain_texts),
+        )
+        .route("/:id/summerize", post(page::summarize))
         .fallback(not_found::get_404)
         .with_state(state.clone());
 

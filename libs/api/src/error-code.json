@@ -10,5 +10,6 @@
     "502-007": "failed to find feeds",
     "502-008": "failed to run code",
     "502-009": "failed to generate image",
-    "502-010": "failed to recache page"
+    "502-010": "failed to recache page",
+    "502-011": "failed to summarization"
 }

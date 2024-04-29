@@ -1,8 +1,10 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use anyhow::anyhow;
 use anyhow::Context;
 use aws_sdk_s3::primitives::ByteStream;
+
 use axum::{
     extract::{
         ws::{Message, WebSocket},
@@ -10,11 +12,13 @@ use axum::{
     },
     response::Response,
 };
-
 use axum_extra::headers;
 use axum_extra::TypedHeader;
 use entity::prelude::*;
 use futures_util::{SinkExt, StreamExt};
+use notion_client::objects::page::PageProperty;
+use notion_client::objects::rich_text::RichText;
+use notion_client::objects::rich_text::Text;
 use notion_client::{
     endpoints::pages::update::request::UpdatePagePropertiesRequest,
     objects::{
@@ -22,15 +26,19 @@ use notion_client::{
         parent::Parent,
     },
 };
-
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::Mutex;
 
 use tracing::{error, info};
 
+use crate::clients::cloudflare::GenerateImageRequest;
+use crate::clients::cloudflare::GenerateTextRequest;
+
+use crate::clients::cloudflare::TranslationRequest;
+use crate::cloudflare::GenerateTextMessage;
+use crate::ApiState;
 use crate::ACCEPT_API_KEY;
-use crate::{page::request::GenerateCoverImageRequest, ApiState};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "action")]
@@ -40,7 +48,7 @@ enum Action {
     },
     GenerateCoverImage {
         id: String,
-        body: GenerateCoverImageRequest,
+        body: GenerateImageRequest,
     },
 }
 
@@ -185,22 +193,15 @@ fn authorize(api_key: &str) -> bool {
 pub async fn generate_cover_image(
     state: &ApiState,
     id: String,
-    body: GenerateCoverImageRequest,
+    body: GenerateImageRequest,
 ) -> anyhow::Result<()> {
-    let response = state
+    let bytes = state
         .cloudflare
-        .post(
-            state.config.cloudflare.generate_ai_path.as_str(),
-            serde_json::to_string(&body).context("failed to serialize body")?,
-        )
-        .await?;
+        .generate_image(&state.config.cloudflare.generate_image_ai_path, body)
+        .await
+        .context("failed to generate image")?;
 
     let file_name = format!("{}.png", id);
-
-    let image = response
-        .bytes()
-        .await
-        .context("failed to get response bytes")?;
 
     state
         .s3
@@ -208,7 +209,7 @@ pub async fn generate_cover_image(
         .bucket(state.config.aws.bucket.clone())
         .content_type("image/png")
         .key(file_name.clone())
-        .body(ByteStream::from(image))
+        .body(ByteStream::from(bytes))
         .send()
         .await
         .context("failed to put object")?;
@@ -235,10 +236,141 @@ pub async fn generate_cover_image(
         .await
         .context("failed to update page properties")?;
 
+    save_page(state, &id).await
+}
+
+pub async fn generate_cover_image_from_plain_text(
+    state: &ApiState,
+    id: String,
+    body: String,
+) -> anyhow::Result<()> {
+    let translated = state
+        .cloudflare
+        .translate(
+            &state.config.cloudflare.translation_ai_path,
+            TranslationRequest {
+                text: body,
+                source_lang: "japanese".to_string(),
+                target_lang: "english".to_string(),
+            },
+        )
+        .await
+        .context("failed to translation")?;
+
+    let result = state
+        .cloudflare
+        .generate_text(
+            &state.config.cloudflare.generate_text_ai_path,
+            GenerateTextRequest {
+                stream: false,
+                messages: vec![
+                    GenerateTextMessage {
+                        role: "system".to_string(),
+                        content: "You are an assistant of desiner. Think a sophisticated prompt from inputs for designer to create a viral and artistic content. The prompt must be less than 100 words.".to_string(),
+                    },
+                    GenerateTextMessage {
+                        role: "user".to_string(),
+                        content: translated,
+                    },
+                ],
+            },
+        )
+        .await
+        .context("failed to translation")?;
+
+    let bytes = state
+        .cloudflare
+        .generate_image(
+            &state.config.cloudflare.generate_image_ai_path,
+            GenerateImageRequest { prompt: result },
+        )
+        .await
+        .context("failed to generate image")?;
+
+    let file_name = format!("{}.png", id);
+
+    state
+        .s3
+        .put_object()
+        .bucket(state.config.aws.bucket.clone())
+        .content_type("image/png")
+        .key(file_name.clone())
+        .body(ByteStream::from(bytes))
+        .send()
+        .await
+        .context("failed to put object")?;
+
+    Ok(())
+}
+
+pub async fn summarize(
+    state: &ApiState,
+    id: String,
+    body: String,
+) -> anyhow::Result<()> {
+    let summary = state
+        .cloudflare
+        .generate_text(
+            &state.config.cloudflare.generate_text_ai_path,
+            GenerateTextRequest {
+                stream:false,
+                messages: vec![
+                    GenerateTextMessage {
+                        role: "system".to_string(),
+                        content: "You will summarize texts. You must reply only the summary. You can't add any other contexts.".to_string(),
+                    },
+                    GenerateTextMessage {
+                        role: "user".to_string(),
+                        content:  format!(r#"
+                        Please summarize the following text.
+                        "{}"
+                        summary:
+                        "#,body).to_string(),
+                    },
+                ],
+            },
+        )
+        .await
+        .context("failed to summarize")?;
+
+    let mut properties = BTreeMap::new();
+    properties.insert(
+        "summary".to_string(),
+        PageProperty::RichText {
+            id: None,
+            rich_text: vec![RichText::Text {
+                text: Text {
+                    content: summary,
+                    link: None,
+                },
+                annotations: None,
+                plain_text: None,
+                href: None,
+            }],
+        },
+    );
+
+    state
+        .notion
+        .pages
+        .update_page_properties(
+            &id,
+            UpdatePagePropertiesRequest {
+                properties,
+                ..Default::default()
+            },
+        )
+        .await
+        .context("failed to update page properties")?;
+
+    save_page(state, &id).await
+}
+
+async fn save_page(state: &ApiState, id: &str) -> anyhow::Result<()> {
     let page = state
         .notion
         .pages
-        .retrieve_a_page(&id, None)
+        .retrieve_a_page(id, None)
         .await
         .context("failed to retrieve a page")?;
 
