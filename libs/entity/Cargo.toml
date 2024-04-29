@@ -8,6 +8,6 @@ edition = "2021"
 [dependencies]
 chrono = "0.4.35"
 strum = { version = "0.26.2", features = ["derive"] }
-serde = { version = "1.0.196", features = ["derive"] }
+serde = { version = "1.0.199", features = ["derive"] }
 regex = "1.10.4"
 anyhow = "1.0.82"
