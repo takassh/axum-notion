@@ -23,6 +23,8 @@ api = { path = "./libs/api" }
 sync-notion = { path = "./libs/sync-notion" }
 sync-github = { path = "./libs/sync-github" }
 repository = { path = "./libs/repository" }
+cloudflare = { path = "./libs/cloudflare" }
+util = { path = "./libs/util" }
 toml = "0.8.12"
 url = "2.5.0"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
@@ -33,3 +35,4 @@ futures = "0.3.30"
 notion-client = "0.1.11"
 aws-sdk-s3 = { version = "1.24.0", features = ["rt-tokio"] }
 aws-config = { version = "1.2.1", features = ["behavior-version-latest"] }
+qdrant-client = "1.9.0"

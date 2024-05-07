@@ -27,7 +27,7 @@ async fn main() -> anyhow::Result<()> {
         })
         .await?;
 
-   println!("{:?}", result);
+    println!("{:?}", result);
 
     Ok(())
 }

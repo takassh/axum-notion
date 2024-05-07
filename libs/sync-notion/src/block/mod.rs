@@ -1,9 +1,20 @@
 use crate::State;
 use async_recursion::async_recursion;
+use cloudflare::models::text_embeddings::{
+    TextEmbeddings, TextEmbeddingsRequest,
+};
 use entity::prelude::*;
 use notion_client::objects::block::{Block, BlockType};
-use std::{sync::Arc, time::Duration};
+use qdrant_client::{
+    client::Payload,
+    qdrant::{
+        Condition, FieldCondition, Filter, Match, PointId, PointStruct, Value,
+    },
+};
+
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
+    join,
     sync::mpsc::{self, Receiver, Sender},
     task::JoinHandle,
     time::sleep,
@@ -180,14 +191,96 @@ fn receiver(
                 ..Default::default()
             };
 
-            let result = state.repository.block.save(model).await;
-            if let Err(e) = result {
+            let (save_result, store_result) = join!(
+                state.repository.block.save(model),
+                store_vectors(
+                    &state.cloudflare,
+                    &state.qdrant,
+                    state.collention.clone(),
+                    message.blocks,
+                    parent_id,
+                )
+            );
+
+            if let Err(e) = save_result {
                 error!(
                     task = "save all blocks",
                     parent_id,
                     error = e.to_string(),
                 );
             }
+
+            if let Err(e) = store_result {
+                error!(
+                    task = "store vectors",
+                    parent_id,
+                    error = e.to_string(),
+                );
+            }
         }
     })
+}
+
+async fn store_vectors(
+    cloudflare: &cloudflare::models::Models,
+    qdrant: &qdrant_client::client::QdrantClient,
+    collection: String,
+    blocks: Vec<Block>,
+    page_id: &str,
+) -> anyhow::Result<()> {
+    qdrant.delete_points(
+        collection.clone(),
+        None,
+        &qdrant_client::qdrant::PointsSelector {
+            points_selector_one_of: Some(qdrant_client::qdrant::points_selector::PointsSelectorOneOf::Filter(Filter{
+                must:vec![Condition{
+                   condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
+                    key:"page_id".to_string(),
+                    r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(page_id.to_string()))}),
+                    ..Default::default()
+                   }))
+                }],
+                ..Default::default()
+            })),
+        },
+        None,
+    ).await?;
+
+    for block in blocks {
+        let text = block.block_type.plain_text();
+        for text in text {
+            if text.is_none() {
+                continue;
+            }
+            let embedding = cloudflare
+                .bge_small_en_v1_5(TextEmbeddingsRequest {
+                    text: text.unwrap().as_str().into(),
+                })
+                .await?;
+
+            let Some(id) = &block.id else {
+                continue;
+            };
+
+            let Some(vectors) = embedding.result.data.first() else {
+                continue;
+            };
+
+            let mut map = HashMap::new();
+            map.insert("id".to_string(), Value::from(id.clone()));
+            map.insert("page_id".to_string(), Value::from(page_id));
+
+            let points = vec![PointStruct::new(
+                PointId::from(id.to_string()),
+                vectors.clone(),
+                Payload::new_from_hashmap(map),
+            )];
+
+            qdrant
+                .upsert_points(collection.clone(), None, points, None)
+                .await?;
+        }
+    }
+
+    Ok(())
 }

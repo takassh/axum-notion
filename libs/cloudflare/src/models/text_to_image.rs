@@ -43,9 +43,9 @@ pub enum Mask {
     Array(Vec<f32>),
 }
 
-impl Into<Body> for TextToImageRequest {
-    fn into(self) -> Body {
-        let body = serde_json::to_string(&self).unwrap();
+impl From<TextToImageRequest> for Body {
+    fn from(val: TextToImageRequest) -> Self {
+        let body = serde_json::to_string(&val).unwrap();
         Body::from(body)
     }
 }

@@ -48,9 +48,9 @@ pub struct TextEmbeddingsResult {
     pub data: Vec<Vec<f32>>,
 }
 
-impl Into<Body> for TextEmbeddingsRequest {
-    fn into(self) -> Body {
-        let body = serde_json::to_string(&self).unwrap();
+impl From<TextEmbeddingsRequest> for Body {
+    fn from(val: TextEmbeddingsRequest) -> Self {
+        let body = serde_json::to_string(&val).unwrap();
         Body::from(body)
     }
 }

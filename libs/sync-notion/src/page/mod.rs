@@ -8,8 +8,9 @@ use notion_client::{
 };
 
 use entity::{post::Category, prelude::*};
+use qdrant_client::qdrant::{Condition, FieldCondition, Filter, Match};
 use std::{collections::HashSet, sync::Arc, time::Duration, vec};
-use tokio::task::JoinHandle;
+use tokio::{join, task::JoinHandle};
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
     time::sleep,
@@ -205,11 +206,26 @@ fn receiver(
                 }
                 Some(Message::Delete { page_ids }) => {
                     for page_id in page_ids {
-                        let result =
-                            state.repository.page.delete(&page_id).await;
-                        if let Err(e) = result {
+                        let (delete_result, vector_result) = join!(
+                            state.repository.page.delete(&page_id),
+                            delete_vectors(
+                                &state.qdrant,
+                                state.collention.clone(),
+                                &page_id,
+                            )
+                        );
+
+                        if let Err(e) = delete_result {
                             error!(
-                                task = "delete",
+                                task = "delete page",
+                                page_id,
+                                error = e.to_string()
+                            );
+                        }
+
+                        if let Err(e) = vector_result {
+                            error!(
+                                task = "delete vector",
                                 page_id,
                                 error = e.to_string()
                             );
@@ -220,4 +236,30 @@ fn receiver(
             }
         }
     })
+}
+
+async fn delete_vectors(
+    qdrant: &qdrant_client::client::QdrantClient,
+    collection: String,
+    page_id: &str,
+) -> anyhow::Result<()> {
+    qdrant.delete_points(
+        collection.clone(),
+        None,
+        &qdrant_client::qdrant::PointsSelector {
+            points_selector_one_of: Some(qdrant_client::qdrant::points_selector::PointsSelectorOneOf::Filter(Filter{
+                must:vec![Condition{
+                   condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
+                    key:"page_id".to_string(),
+                    r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(page_id.to_string()))}),
+                    ..Default::default()
+                   }))
+                }],
+                ..Default::default()
+            })),
+        },
+        None,
+    ).await?;
+
+    Ok(())
 }

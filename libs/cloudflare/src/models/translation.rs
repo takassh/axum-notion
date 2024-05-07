@@ -29,9 +29,9 @@ pub struct TranslationResult {
     pub translated_text: String,
 }
 
-impl Into<Body> for TranslationRequest {
-    fn into(self) -> Body {
-        let body = serde_json::to_string(&self).unwrap();
+impl From<TranslationRequest> for Body {
+    fn from(val: TranslationRequest) -> Self {
+        let body = serde_json::to_string(&val).unwrap();
         Body::from(body)
     }
 }

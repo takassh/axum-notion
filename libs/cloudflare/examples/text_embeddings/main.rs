@@ -1,5 +1,8 @@
 use anyhow::Context;
-use cloudflare::models::{self, text_embeddings::{TextEmbeddings, TextEmbeddingsRequest}};
+use cloudflare::models::{
+    self,
+    text_embeddings::{TextEmbeddings, TextEmbeddingsRequest},
+};
 use toml::{map::Map, Value};
 use util::workspace_dir;
 
@@ -7,8 +10,7 @@ use util::workspace_dir;
 async fn main() -> anyhow::Result<()> {
     let secrets = load_env()?;
 
-    let token =
-        secrets.get("CLOUDFLARE_TOKEN").unwrap().as_str().unwrap();
+    let token = secrets.get("CLOUDFLARE_TOKEN").unwrap().as_str().unwrap();
     let account_id = secrets
         .get("CLOUDFLARE_ACCOUNT_ID")
         .unwrap()
@@ -17,9 +19,11 @@ async fn main() -> anyhow::Result<()> {
 
     let models = models::Models::new(account_id, token);
 
-    let result = models.bge_base_en_v1_5(TextEmbeddingsRequest{
-        text: "Hello, world!".into(),
-    }).await?;
+    let result = models
+        .bge_base_en_v1_5(TextEmbeddingsRequest {
+            text: "Hello, world!".into(),
+        })
+        .await?;
 
     println!("{:?}", result);
 

@@ -55,9 +55,9 @@ impl Models {
 
         ensure!(
             status_code.is_success(),
-            "status code: {}, response: {}",
+            "status code: {}, response: {:?}",
             status_code,
-            text.unwrap_err()
+            text
         );
 
         Ok(text?)
@@ -78,7 +78,7 @@ impl Models {
         let status_code = response.status();
         let bytes = response.bytes().await;
 
-        ensure!(status_code.is_success(), "status code: {}", status_code,);
+        ensure!(status_code.is_success(), "status code: {}", status_code);
 
         Ok(bytes?)
     }

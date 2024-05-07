@@ -56,9 +56,9 @@ pub struct TextGenerationJsonResult {
     pub response: String,
 }
 
-impl Into<Body> for TextGenerationRequest {
-    fn into(self) -> Body {
-        let body = serde_json::to_string(&self).unwrap();
+impl From<TextGenerationRequest> for Body {
+    fn from(val: TextGenerationRequest) -> Self {
+        let body = serde_json::to_string(&val).unwrap();
         Body::from(body)
     }
 }

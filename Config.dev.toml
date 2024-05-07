@@ -19,3 +19,7 @@ summarization_ai_path = "ai/run/@cf/facebook/bart-large-cnn"
 
 [aws]
 s3_url = "https://bucket.takassh.com"
+
+[qdrant]
+base_url = "https://37feeba7-135c-48c4-a8a9-93a52b2b1de7.us-east4-0.gcp.cloud.qdrant.io:6334"
+collection = "notion"

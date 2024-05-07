@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+
 use std::process::id;
 
 use anyhow::Context;
@@ -7,8 +7,8 @@ use repository::Repository;
 use shuttle_persist::PersistInstance;
 use shuttle_runtime::{SecretStore, Secrets};
 use tokio::join;
-use toml::map::Map;
-use toml::Value;
+
+
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
     layer::SubscriberExt, util::SubscriberInitExt, EnvFilter,
@@ -21,8 +21,6 @@ async fn main(
     conn_string: String,
     #[shuttle_persist::Persist] persist: PersistInstance,
 ) -> shuttle_axum::ShuttleAxum {
-    init_log(secret_store.clone())?;
-
     let notion_token = secret_store.get("NOTION_TOKEN").unwrap();
 
     let github_token = secret_store.get("GITHUB_TOKEN").unwrap();
@@ -38,14 +36,33 @@ async fn main(
 
     let accept_api_key = secret_store.get("ACCEPTABLE_API_KEY").unwrap();
 
-    let config = secret_store.get("CONFIG").unwrap();
-    let config_name = &format!("Config{}", config);
+    let config_name =
+        &format!("Config{}", secret_store.get("CONFIG").unwrap().as_str());
+    let config = util::load_config(config_name)?;
 
     let repository = Repository::new(&conn_string).await?.with_cache(persist);
 
     let notion_client =
         notion_client::endpoints::Client::new(notion_token.clone())
             .context("failed to build notion client")?;
+
+    let cloudflare = cloudflare::models::Models::new(
+        &cloudflare_account_id,
+        &cloudflare_token,
+    );
+
+    let qdrant = qdrant_client::client::QdrantClient::from_url(
+        config
+            .get("qdrant")
+            .unwrap()
+            .get("base_url")
+            .unwrap()
+            .as_str()
+            .unwrap(),
+    )
+    .with_api_key(secret_store.get("QDRANT_API_KEY").unwrap())
+    .build()
+    .unwrap();
 
     let credentials =
         Credentials::new(access_key_id, secret_access_key, None, None, "");
@@ -57,10 +74,14 @@ async fn main(
         .await;
     let s3 = aws_sdk_s3::Client::new(&cfg);
 
+    init_log(secret_store.clone(), config_name)?;
+
     let (notion, github, router) = join!(
         sync_notion::serve(
             repository.clone(),
             notion_client.clone(),
+            cloudflare,
+            qdrant,
             config_name
         ),
         sync_github::serve(repository.clone(), config_name, &github_token),
@@ -83,8 +104,8 @@ async fn main(
     Ok(router.into())
 }
 
-fn init_log(store: SecretStore) -> anyhow::Result<()> {
-    let config = load_config()?;
+fn init_log(store: SecretStore, config_name: &str) -> anyhow::Result<()> {
+    let config = util::load_config(config_name)?;
 
     let grafana = config.get("grafana").context("failed to find grafana")?;
 
@@ -138,25 +159,4 @@ fn init_log(store: SecretStore) -> anyhow::Result<()> {
     tokio::spawn(task);
 
     Ok(())
-}
-
-fn load_config() -> anyhow::Result<Map<String, Value>> {
-    let workspace_dir = workspace_dir();
-    let config = std::fs::read_to_string(workspace_dir.join("Config.toml"))?;
-
-    let config = toml::from_str::<Map<String, Value>>(&config)?;
-
-    Ok(config)
-}
-
-fn workspace_dir() -> PathBuf {
-    let output = std::process::Command::new(env!("CARGO"))
-        .arg("locate-project")
-        .arg("--workspace")
-        .arg("--message-format=plain")
-        .output()
-        .unwrap()
-        .stdout;
-    let cargo_path = Path::new(std::str::from_utf8(&output).unwrap().trim());
-    cargo_path.parent().unwrap().to_path_buf()
 }
