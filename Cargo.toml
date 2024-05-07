@@ -1,9 +1,9 @@
 workspace = { members = [
-    "libs/api",
+    "libs/api", "libs/cloudflare",
     "libs/entity",
     "libs/repository",
     "libs/sync-github",
-    "libs/sync-notion",
+    "libs/sync-notion", "libs/util",
 ], exclude = [
     "libs/repository/migration",
 ] }
