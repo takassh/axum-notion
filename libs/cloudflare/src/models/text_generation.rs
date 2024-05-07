@@ -20,7 +20,7 @@ pub enum TextGenerationRequest {
     Message(MessageRequest),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Default)]
 pub struct PromptRequest {
     pub prompt: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -31,7 +31,7 @@ pub struct PromptRequest {
     pub max_tokens: Option<i32>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Default)]
 pub struct MessageRequest {
     pub messages: Vec<Message>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -40,7 +40,7 @@ pub struct MessageRequest {
     pub max_tokens: Option<i32>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Default)]
 pub struct Message {
     pub role: String,
     pub content: String,

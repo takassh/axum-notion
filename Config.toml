@@ -10,13 +10,6 @@ base_url = "https://api.github.com"
 pause_secs = 2
 username = "takassh"
 
-[cloudflare]
-base_url = "https://api.cloudflare.com"
-generate_image_ai_path = "ai/run/@cf/bytedance/stable-diffusion-xl-lightning"
-translation_ai_path = "ai/run/@cf/meta/m2m100-1.2b"
-generate_text_ai_path = "ai/run/@cf/meta/llama-3-8b-instruct"
-summarization_ai_path = "ai/run/@cf/facebook/bart-large-cnn"
-
 [aws]
 s3_url = "https://bucket.takassh.com"
 

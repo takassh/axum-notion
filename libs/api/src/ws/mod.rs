@@ -14,16 +14,24 @@ use axum::{
 };
 use axum_extra::headers;
 use axum_extra::TypedHeader;
+use cloudflare::models::text_generation::Message as GenerateTextMessage;
+use cloudflare::models::text_generation::MessageRequest;
+use cloudflare::models::text_generation::TextGeneration;
+use cloudflare::models::text_generation::TextGenerationRequest;
+use cloudflare::models::text_to_image::TextToImage;
+use cloudflare::models::text_to_image::TextToImageRequest;
+use cloudflare::models::translation::Translation;
+use cloudflare::models::translation::TranslationRequest;
 use entity::prelude::*;
 use futures_util::{SinkExt, StreamExt};
-use notion_client::objects::page::PageProperty;
-use notion_client::objects::rich_text::RichText;
-use notion_client::objects::rich_text::Text;
 use notion_client::{
     endpoints::pages::update::request::UpdatePagePropertiesRequest,
     objects::{
         file::{ExternalFile, File},
+        page::PageProperty,
         parent::Parent,
+        rich_text::RichText,
+        rich_text::Text,
     },
 };
 use serde::Deserialize;
@@ -32,13 +40,13 @@ use tokio::sync::Mutex;
 
 use tracing::{error, info};
 
-use crate::clients::cloudflare::GenerateImageRequest;
-use crate::clients::cloudflare::GenerateTextRequest;
-
-use crate::clients::cloudflare::TranslationRequest;
-use crate::cloudflare::GenerateTextMessage;
 use crate::ApiState;
 use crate::ACCEPT_API_KEY;
+
+use self::request::GenerateImageRequest;
+
+pub mod request;
+pub mod response;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "action")]
@@ -62,7 +70,7 @@ enum ActionResponse {
 pub async fn ws(
     ws: WebSocketUpgrade,
     user_agent: Option<TypedHeader<headers::UserAgent>>,
-    State(state): State<ApiState>,
+    State(state): State<Arc<ApiState>>,
 ) -> Response {
     let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
         user_agent.to_string()
@@ -73,7 +81,7 @@ pub async fn ws(
     ws.on_upgrade(|socket| handler(socket, state))
 }
 
-async fn handler(socket: WebSocket, state: ApiState) {
+async fn handler(socket: WebSocket, state: Arc<ApiState>) {
     info!("Connection opened");
 
     let authorized = Arc::new(Mutex::new(false));
@@ -197,7 +205,10 @@ pub async fn generate_cover_image(
 ) -> anyhow::Result<()> {
     let bytes = state
         .cloudflare
-        .generate_image(&state.config.cloudflare.generate_image_ai_path, body)
+        .stable_diffusion_xl_lightning(TextToImageRequest {
+            prompt: body.prompt,
+            ..Default::default()
+        })
         .await
         .context("failed to generate image")?;
 
@@ -246,44 +257,38 @@ pub async fn generate_cover_image_from_plain_text(
 ) -> anyhow::Result<()> {
     let translated = state
         .cloudflare
-        .translate(
-            &state.config.cloudflare.translation_ai_path,
-            TranslationRequest {
-                text: body,
-                source_lang: "japanese".to_string(),
-                target_lang: "english".to_string(),
-            },
-        )
+        .m2m100_1_2b(TranslationRequest {
+            text: body,
+            source_lang: "japanese".to_string(),
+            target_lang: "english".to_string(),
+        })
         .await
         .context("failed to translation")?;
 
-    let result = state
+    let response = state
         .cloudflare
-        .generate_text(
-            &state.config.cloudflare.generate_text_ai_path,
-            GenerateTextRequest {
-                stream: false,
-                messages: vec![
-                    GenerateTextMessage {
-                        role: "system".to_string(),
-                        content: "You are an assistant of desiner. Think a sophisticated prompt from inputs for designer to create a viral and artistic content. The prompt must be less than 100 words.".to_string(),
-                    },
-                    GenerateTextMessage {
-                        role: "user".to_string(),
-                        content: translated,
-                    },
-                ],
-            },
-        )
+        .llama_3_8b_instruct(TextGenerationRequest::Message(MessageRequest {
+            messages:vec![
+                GenerateTextMessage {
+                    role: "system".to_string(),
+                    content: "You are an assistant of desiner. Think a sophisticated prompt from inputs for designer to create a viral and artistic content. The prompt must be less than 100 words.".to_string(),
+                },
+                GenerateTextMessage {
+                    role: "user".to_string(),
+                    content: translated.result.translated_text,
+                },
+            ],
+            ..Default::default()
+        }))
         .await
         .context("failed to translation")?;
 
     let bytes = state
         .cloudflare
-        .generate_image(
-            &state.config.cloudflare.generate_image_ai_path,
-            GenerateImageRequest { prompt: result },
-        )
+        .stable_diffusion_xl_lightning(TextToImageRequest {
+            prompt: response.result.response,
+            ..Default::default()
+        })
         .await
         .context("failed to generate image")?;
 
@@ -308,30 +313,20 @@ pub async fn summarize(
     id: String,
     body: String,
 ) -> anyhow::Result<()> {
-    let summary = state
-        .cloudflare
-        .generate_text(
-            &state.config.cloudflare.generate_text_ai_path,
-            GenerateTextRequest {
-                stream:false,
-                messages: vec![
-                    GenerateTextMessage {
-                        role: "system".to_string(),
-                        content: "You will summarize texts. You must reply only the summary. You can't add any other contexts.".to_string(),
-                    },
-                    GenerateTextMessage {
-                        role: "user".to_string(),
-                        content:  format!(r#"
-                        Please summarize the following text.
-                        "{}"
-                        summary:
-                        "#,body).to_string(),
-                    },
-                ],
-            },
-        )
-        .await
-        .context("failed to summarize")?;
+    let response =state.cloudflare.llama_3_8b_instruct(TextGenerationRequest::Message(MessageRequest { messages:  vec![
+        GenerateTextMessage {
+            role: "system".to_string(),
+            content: "You will summarize texts. You must reply only the summary. You can't add any other contexts.".to_string(),
+        },
+        GenerateTextMessage {
+            role: "user".to_string(),
+            content:  format!(r#"
+            Please summarize the following text.
+            "{}"
+            summary:
+            "#,body).to_string(),
+        },
+    ], ..Default::default()})).await.context("failed to summarize")?;
 
     let mut properties = BTreeMap::new();
     properties.insert(
@@ -340,7 +335,7 @@ pub async fn summarize(
             id: None,
             rich_text: vec![RichText::Text {
                 text: Text {
-                    content: summary,
+                    content: response.result.response,
                     link: None,
                 },
                 annotations: None,

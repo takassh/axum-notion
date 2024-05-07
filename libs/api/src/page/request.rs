@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};
 
-use crate::util::request::Pagination;
+use crate::request::Pagination;
 
 #[derive(Deserialize, ToSchema, IntoParams)]
 pub struct GetPagesParam {

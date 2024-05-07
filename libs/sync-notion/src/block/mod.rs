@@ -1,4 +1,5 @@
 use crate::State;
+use anyhow::Context;
 use async_recursion::async_recursion;
 use cloudflare::models::text_embeddings::{
     TextEmbeddings, TextEmbeddingsRequest,
@@ -244,10 +245,13 @@ async fn store_vectors(
             })),
         },
         None,
-    ).await?;
+    ).await.context("failed to delete")?;
 
     for block in blocks {
         let text = block.block_type.plain_text();
+        if let BlockType::Code { code: _ } = block.block_type {
+            continue;
+        }
         for text in text {
             if text.is_none() {
                 continue;
@@ -256,7 +260,11 @@ async fn store_vectors(
                 .bge_small_en_v1_5(TextEmbeddingsRequest {
                     text: text.unwrap().as_str().into(),
                 })
-                .await?;
+                .await
+                .context(format!(
+                    "failed to embed. block id: {:?}",
+                    block.id
+                ))?;
 
             let Some(id) = &block.id else {
                 continue;
@@ -278,7 +286,11 @@ async fn store_vectors(
 
             qdrant
                 .upsert_points(collection.clone(), None, points, None)
-                .await?;
+                .await
+                .context(format!(
+                    "failed to upsert. block id: {:?}",
+                    block.id
+                ))?;
         }
     }
 

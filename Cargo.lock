@@ -3,35 +3,6 @@
 version = 3
 
 [[package]]
-name = "activity-takassh"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "api",
- "aws-config",
- "aws-sdk-s3",
- "base64 0.22.0",
- "cloudflare",
- "futures",
- "notion-client",
- "qdrant-client",
- "repository",
- "shuttle-axum",
- "shuttle-persist",
- "shuttle-runtime",
- "shuttle-shared-db",
- "sync-github",
- "sync-notion",
- "tokio",
- "toml",
- "tracing",
- "tracing-loki",
- "tracing-subscriber",
- "url",
- "util",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -170,9 +141,11 @@ dependencies = [
  "axum 0.7.4",
  "axum-extra",
  "chrono",
+ "cloudflare",
  "entity",
  "futures-util",
  "notion-client",
+ "qdrant-client",
  "repository",
  "reqwest 0.12.4",
  "serde",
@@ -185,6 +158,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "util",
  "utoipa",
  "utoipa-rapidoc",
  "utoipa-redoc",
@@ -4839,6 +4813,35 @@ checksum = "a75fb188eb626b924683e3b95e3a48e63551fcfb51949de2f06a9d91dbee93c9"
 dependencies = [
  "core-foundation-sys",
  "libc",
+]
+
+[[package]]
+name = "takassh"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "api",
+ "aws-config",
+ "aws-sdk-s3",
+ "base64 0.22.0",
+ "cloudflare",
+ "futures",
+ "notion-client",
+ "qdrant-client",
+ "repository",
+ "shuttle-axum",
+ "shuttle-persist",
+ "shuttle-runtime",
+ "shuttle-shared-db",
+ "sync-github",
+ "sync-notion",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-loki",
+ "tracing-subscriber",
+ "url",
+ "util",
 ]
 
 [[package]]

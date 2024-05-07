@@ -3,8 +3,9 @@ use std::fs;
 use axum::{http::StatusCode, response::IntoResponse};
 use serde_json::Value;
 use tracing::error;
+use util::workspace_dir;
 
-use crate::{util::workspace_dir, ApiError};
+use crate::ApiError;
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {

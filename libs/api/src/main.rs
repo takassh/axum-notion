@@ -6,9 +6,7 @@ use aws_sdk_s3::config::Credentials;
 use repository::Repository;
 use tokio::net::TcpListener;
 use toml::{map::Map, Value};
-use util::workspace_dir;
-
-mod util;
+use util::{load_config, workspace_dir};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -18,14 +16,6 @@ async fn main() -> anyhow::Result<()> {
     let conn_string =
         secrets.get("LOCAL_DATABASE_URL").unwrap().as_str().unwrap();
     let repository = Repository::new(conn_string).await?;
-
-    let cloudflare_token =
-        secrets.get("CLOUDFLARE_TOKEN").unwrap().as_str().unwrap();
-    let cloudflare_account_id = secrets
-        .get("CLOUDFLARE_ACCOUNT_ID")
-        .unwrap()
-        .as_str()
-        .unwrap();
 
     let notion_token = secrets.get("NOTION_TOKEN").unwrap().as_str().unwrap();
     let notion_client =
@@ -54,15 +44,45 @@ async fn main() -> anyhow::Result<()> {
     let accept_api_key =
         secrets.get("ACCEPTABLE_API_KEY").unwrap().as_str().unwrap();
 
-    let config = secrets.get("CONFIG").unwrap().as_str().unwrap();
-    let config_name = &format!("Config{}", config);
+    let config_name = &format!(
+        "Config{}",
+        secrets
+            .get("CONFIG")
+            .context("CONFIG was not found")?
+            .as_str()
+            .unwrap()
+    );
+
+    let cloudflare = cloudflare::models::Models::new(
+        secrets
+            .get("CLOUDFLARE_ACCOUNT_ID")
+            .unwrap()
+            .as_str()
+            .unwrap(),
+        secrets.get("CLOUDFLARE_TOKEN").unwrap().as_str().unwrap(),
+    );
+
+    let config = load_config(config_name)?;
+
+    let qdrant = qdrant_client::client::QdrantClient::from_url(
+        config
+            .get("qdrant")
+            .unwrap()
+            .get("base_url")
+            .unwrap()
+            .as_str()
+            .unwrap(),
+    )
+    .with_api_key(secrets.get("QDRANT_API_KEY").unwrap().as_str().unwrap())
+    .build()
+    .unwrap();
 
     let router = serve(
         repository,
         notion_client,
+        qdrant,
+        cloudflare,
         s3,
-        cloudflare_token.to_string(),
-        cloudflare_account_id.to_string(),
         bucket.to_string(),
         config_name,
         accept_api_key.to_string(),

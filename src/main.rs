@@ -1,4 +1,3 @@
-
 use std::process::id;
 
 use anyhow::Context;
@@ -7,7 +6,6 @@ use repository::Repository;
 use shuttle_persist::PersistInstance;
 use shuttle_runtime::{SecretStore, Secrets};
 use tokio::join;
-
 
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
@@ -51,7 +49,19 @@ async fn main(
         &cloudflare_token,
     );
 
-    let qdrant = qdrant_client::client::QdrantClient::from_url(
+    let qdrant1 = qdrant_client::client::QdrantClient::from_url(
+        config
+            .get("qdrant")
+            .unwrap()
+            .get("base_url")
+            .unwrap()
+            .as_str()
+            .unwrap(),
+    )
+    .with_api_key(secret_store.get("QDRANT_API_KEY").unwrap())
+    .build()
+    .unwrap();
+    let qdrant2 = qdrant_client::client::QdrantClient::from_url(
         config
             .get("qdrant")
             .unwrap()
@@ -80,17 +90,17 @@ async fn main(
         sync_notion::serve(
             repository.clone(),
             notion_client.clone(),
-            cloudflare,
-            qdrant,
+            cloudflare.clone(),
+            qdrant1,
             config_name
         ),
         sync_github::serve(repository.clone(), config_name, &github_token),
         api::serve(
             repository,
             notion_client,
+            qdrant2,
+            cloudflare,
             s3,
-            cloudflare_token,
-            cloudflare_account_id,
             bucket,
             config_name,
             accept_api_key

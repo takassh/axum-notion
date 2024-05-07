@@ -11,5 +11,9 @@
     "502-008": "failed to run code",
     "502-009": "failed to generate image",
     "502-010": "failed to recache page",
-    "502-011": "failed to summarization"
+    "502-011": "failed to summarization",
+    "502-012": "failed to embed",
+    "502-013": "failed to search points",
+    "502-014": "failed to ask llm",
+    "502-015": "failed to retrieve a block"
 }

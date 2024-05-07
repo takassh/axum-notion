@@ -28,6 +28,7 @@ async fn main() -> anyhow::Result<()> {
             .as_str()
             .unwrap()
     );
+    let config = util::load_config(config_name)?;
 
     let repository = Repository::new(conn_string).await?;
 
@@ -43,8 +44,6 @@ async fn main() -> anyhow::Result<()> {
             .unwrap(),
         secrets.get("CLOUDFLARE_TOKEN").unwrap().as_str().unwrap(),
     );
-
-    let config = util::load_config(config_name)?;
 
     let qdrant = qdrant_client::client::QdrantClient::from_url(
         config

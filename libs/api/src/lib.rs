@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use axum::{middleware, routing::get, routing::post, Router};
 
+use qdrant_client::client::QdrantClient;
 use repository::Repository;
 use tokio::sync::OnceCell;
 use toml::{map::Map, Value};
@@ -12,23 +15,20 @@ use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 use utoipauto::utoipauto;
 
-use crate::{
-    clients::cloudflare,
-    top::{receive, send},
-};
+use crate::top::{receive, send};
 
 mod auth;
 pub mod block;
-mod clients;
 pub mod event;
 pub mod healthz;
 pub mod not_found;
 pub mod page;
 pub mod post;
+mod request;
 mod response;
 pub mod runtime;
+pub mod search;
 pub mod top;
-mod util;
 pub mod ws;
 
 pub enum ApiError {
@@ -37,33 +37,27 @@ pub enum ApiError {
     ServerError(String),
 }
 
-#[derive(Clone, Debug)]
 pub struct ApiState {
     repo: Repository,
     notion: notion_client::endpoints::Client,
-    cloudflare: cloudflare::Client,
+    cloudflare: cloudflare::models::Models,
     s3: aws_sdk_s3::Client,
+    qdrant: QdrantClient,
     config: Config,
 }
 
-#[derive(Clone, Debug)]
 pub struct Config {
-    pub cloudflare: Cloudflare,
     pub aws: AWS,
-}
-#[derive(Clone, Debug)]
-pub struct Cloudflare {
-    pub base_url: String,
-    pub generate_image_ai_path: String,
-    pub generate_text_ai_path: String,
-    pub translation_ai_path: String,
-    pub summarization_ai_path: String,
+    pub qdrant: Qdrant,
 }
 
-#[derive(Clone, Debug)]
 pub struct AWS {
     pub bucket: String,
     pub s3_url: String,
+}
+
+pub struct Qdrant {
+    pub collection: String,
 }
 
 static ACCEPT_API_KEY: OnceCell<String> = OnceCell::const_new();
@@ -72,9 +66,9 @@ static ACCEPT_API_KEY: OnceCell<String> = OnceCell::const_new();
 pub async fn serve(
     repository: Repository,
     notion_client: notion_client::endpoints::Client,
+    qdrant: QdrantClient,
+    cloudflare: cloudflare::models::Models,
     s3: aws_sdk_s3::Client,
-    cloudflare_token: String,
-    cloudflare_account_id: String,
     bucket: String,
     config_name: &str,
     accept_api_key: String,
@@ -93,47 +87,26 @@ pub async fn serve(
     ACCEPT_API_KEY.set(accept_api_key).unwrap();
 
     let config = load_config(config_name)?;
-    let cloudflare = Cloudflare {
-        base_url: config["cloudflare"]["base_url"]
-            .as_str()
-            .unwrap()
-            .to_string(),
-        generate_image_ai_path: config["cloudflare"]["generate_image_ai_path"]
-            .as_str()
-            .unwrap()
-            .to_string(),
-        generate_text_ai_path: config["cloudflare"]["generate_text_ai_path"]
-            .as_str()
-            .unwrap()
-            .to_string(),
-        translation_ai_path: config["cloudflare"]["translation_ai_path"]
-            .as_str()
-            .unwrap()
-            .to_string(),
-        summarization_ai_path: config["cloudflare"]["summarization_ai_path"]
-            .as_str()
-            .unwrap()
-            .to_string(),
-    };
 
-    let aws = AWS {
-        bucket,
-        s3_url: config["aws"]["s3_url"].as_str().unwrap().to_string(),
-    };
-
-    let cloudflare_client = cloudflare::Client::new(
-        cloudflare_token,
-        cloudflare_account_id,
-        cloudflare.base_url.clone(),
-    )?;
-
-    let state = ApiState {
+    let state = Arc::new(ApiState {
         repo: repository.clone(),
         notion: notion_client,
-        cloudflare: cloudflare_client,
+        cloudflare,
         s3,
-        config: Config { cloudflare, aws },
-    };
+        qdrant,
+        config: Config {
+            aws: AWS {
+                bucket,
+                s3_url: config["aws"]["s3_url"].as_str().unwrap().to_string(),
+            },
+            qdrant: Qdrant {
+                collection: config["qdrant"]["collection"]
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+            },
+        },
+    });
 
     let origins = ["http://localhost:3000".parse().unwrap()];
     // pages
@@ -184,6 +157,12 @@ pub async fn serve(
         .fallback(not_found::get_404)
         .with_state(state.clone());
 
+    // search
+    let search_router = Router::new()
+        .route("/", get(search::search_text))
+        .fallback(not_found::get_404)
+        .with_state(state.clone());
+
     // runtime
     // let _ = Router::new().route("/", post(runtime::post_code));
 
@@ -199,6 +178,7 @@ pub async fn serve(
         .nest("/blocks", block_router)
         .nest("/events", event_router)
         .nest("/posts", post_router)
+        .nest("/search", search_router)
         // .nest("/runtime", runtime_router)
         .route_layer(middleware::from_fn(auth::auth))
         .nest("/ws", ws_router)

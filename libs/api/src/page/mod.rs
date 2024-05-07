@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::{
     extract::{Path, Query, State},
     Json,
@@ -7,12 +9,12 @@ pub mod request;
 pub mod response;
 
 use crate::{
-    clients::cloudflare::{GenerateImageFromText, GenerateImageRequest},
-    ApiState,
-};
-use crate::{
     response::{ApiResponse, IntoApiResponse},
     ws,
+};
+use crate::{
+    ws::request::{GenerateImageFromText, GenerateImageRequest},
+    ApiState,
 };
 
 use self::{
@@ -32,7 +34,7 @@ use self::{
         )
     )]
 pub async fn get_pages(
-    State(state): State<ApiState>,
+    State(state): State<Arc<ApiState>>,
     Query(params): Query<GetPagesParam>,
 ) -> ApiResponse<Json<GetPagesResponse>> {
     let pages = state
@@ -70,7 +72,7 @@ pub async fn get_pages(
     )
 )]
 pub async fn get_page(
-    State(state): State<ApiState>,
+    State(state): State<Arc<ApiState>>,
     Path(id): Path<String>,
 ) -> ApiResponse<Json<GetPageResponse>> {
     let page = state
@@ -103,7 +105,7 @@ pub async fn get_page(
     )
 )]
 pub async fn generate_cover_image(
-    State(state): State<ApiState>,
+    State(state): State<Arc<ApiState>>,
     Path(id): Path<String>,
     Json(body): Json<GenerateImageRequest>,
 ) -> ApiResponse<()> {
@@ -126,7 +128,7 @@ pub async fn generate_cover_image(
     )
 )]
 pub async fn generate_cover_image_from_plain_texts(
-    State(state): State<ApiState>,
+    State(state): State<Arc<ApiState>>,
     Path(id): Path<String>,
     Json(body): Json<GenerateImageFromText>,
 ) -> ApiResponse<()> {
@@ -149,7 +151,7 @@ pub async fn generate_cover_image_from_plain_texts(
     )
 )]
 pub async fn generate_summarize(
-    State(state): State<ApiState>,
+    State(state): State<Arc<ApiState>>,
     Path(id): Path<String>,
     Json(body): Json<GenerateImageFromText>,
 ) -> ApiResponse<()> {
