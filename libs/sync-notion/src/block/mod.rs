@@ -9,10 +9,15 @@ use notion_client::objects::block::{Block, BlockType};
 use qdrant_client::{
     client::Payload,
     qdrant::{
-        Condition, FieldCondition, Filter, Match, PointId, PointStruct, Value,
+        Condition, FieldCondition, Filter, Match, PointStruct, Value,
     },
 };
-use std::{collections::HashMap, sync::Arc, time::Duration};
+
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::Duration,
+};
 use tokio::{
     join,
     sync::mpsc::{self, Receiver, Sender},
@@ -20,6 +25,7 @@ use tokio::{
     time::sleep,
 };
 use tracing::error;
+use uuid::Uuid;
 
 struct Message {
     parent_id: String,
@@ -246,15 +252,10 @@ async fn store_vectors(
         None,
     ).await.context("failed to delete")?;
 
-    for block in blocks {
-        if let BlockType::Code { code: _ } = block.block_type {
-            continue;
-        }
-
-        let texts = block
-            .block_type
-            .plain_text()
-            .into_iter()
+    for chunk in blocks.chunks(10) {
+        let texts = chunk
+            .iter()
+            .flat_map(|block| block.block_type.plain_text())
             .flatten()
             .collect::<Vec<String>>()
             .join(" ");
@@ -262,27 +263,31 @@ async fn store_vectors(
         if texts.is_empty() {
             continue;
         }
-        let Some(id) = &block.id else {
-            continue;
-        };
+
+        let block_ids = chunk
+            .iter()
+            .flat_map(|block| block.clone().id)
+            .collect::<Vec<String>>()
+            .join("_");
 
         let embedding = cloudflare
             .bge_small_en_v1_5(TextEmbeddingsRequest {
                 text: texts.as_str().into(),
             })
             .await
-            .context(format!("failed to embed. block id: {:?}", id))?;
+            .context(format!("failed to embed. block ids: {}", block_ids))?;
 
         let Some(vectors) = embedding.result.data.first() else {
             continue;
         };
 
         let mut map = HashMap::new();
-        map.insert("id".to_string(), Value::from(id.clone()));
+        map.insert("id".to_string(), Value::from(block_ids.clone()));
         map.insert("page_id".to_string(), Value::from(page_id));
+        map.insert("document".to_string(), Value::from(texts));
 
         let points = vec![PointStruct::new(
-            PointId::from(id.to_string()),
+            Uuid::new_v4().hyphenated().to_string(),
             vectors.clone(),
             Payload::new_from_hashmap(map),
         )];
@@ -290,7 +295,7 @@ async fn store_vectors(
         qdrant
             .upsert_points(collection.clone(), None, points, None)
             .await
-            .context(format!("failed to upsert. block id: {:?}", block.id))?;
+            .context(format!("failed to upsert. block ids: {:?}", block_ids))?;
     }
 
     Ok(())

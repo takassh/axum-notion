@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use anyhow::Context;
 use axum::{
     extract::{Query, State},
     Json,
@@ -60,30 +59,16 @@ pub async fn search_text(
         .await
         .into_response("502-013")?;
 
-    let mut plain_texts: Vec<String> = vec![];
-    for result in search_result.result {
-        let Some(id) = result.id else {
+    let mut context: Vec<&str> = vec![];
+    for result in search_result.result.iter() {
+        let Some(doc) = result.payload.get("document") else {
             continue;
         };
-        let Some(id) = id.point_id_options else {
+        let Some(doc) = doc.as_str() else {
             continue;
         };
-        let id: String = match id {
-            qdrant_client::qdrant::point_id::PointIdOptions::Num(_) => continue,
-            qdrant_client::qdrant::point_id::PointIdOptions::Uuid(str) => str,
-        };
 
-        let plain_text = state
-            .notion
-            .blocks
-            .retrieve_a_block(&id)
-            .await
-            .context("failed to retrieve a block")
-            .into_response("502-015")?
-            .block_type
-            .plain_text();
-
-        plain_texts.push(plain_text.into_iter().flatten().collect());
+        context.push(doc);
     }
 
     let prompt = format!(
@@ -98,7 +83,7 @@ pub async fn search_text(
         Answer:
         "#,
         params.prompt,
-        plain_texts.join("\n")
+        context.join("\n")
     );
 
     let response = state
