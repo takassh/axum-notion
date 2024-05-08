@@ -8,7 +8,10 @@ use cloudflare::models::{
     text_embeddings::{StringOrArray, TextEmbeddings, TextEmbeddingsRequest},
     text_generation::{PromptRequest, TextGeneration, TextGenerationRequest},
 };
-use qdrant_client::qdrant::SearchPoints;
+use qdrant_client::qdrant::{
+    with_payload_selector::SelectorOptions, PayloadIncludeSelector,
+    SearchPoints, WithPayloadSelector,
+};
 
 use crate::{
     response::{ApiResponse, IntoApiResponse},
@@ -53,7 +56,14 @@ pub async fn search_text(
         .search_points(&SearchPoints {
             collection_name: state.config.qdrant.collection.clone(),
             vector: vector.clone(),
-            limit: 10,
+            limit: 3,
+            with_payload: Some(WithPayloadSelector {
+                selector_options: Some(SelectorOptions::Include(
+                    PayloadIncludeSelector {
+                        fields: vec!["document".to_string()],
+                    },
+                )),
+            }),
             ..Default::default()
         })
         .await
