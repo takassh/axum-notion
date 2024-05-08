@@ -8,16 +8,10 @@ use entity::prelude::*;
 use notion_client::objects::block::{Block, BlockType};
 use qdrant_client::{
     client::Payload,
-    qdrant::{
-        Condition, FieldCondition, Filter, Match, PointStruct, Value,
-    },
+    qdrant::{Condition, FieldCondition, Filter, Match, PointStruct, Value},
 };
 
-use std::{
-    collections::HashMap,
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
     join,
     sync::mpsc::{self, Receiver, Sender},
