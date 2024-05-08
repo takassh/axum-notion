@@ -12,7 +12,6 @@ use qdrant_client::{
         Condition, FieldCondition, Filter, Match, PointId, PointStruct, Value,
     },
 };
-
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
     join,
@@ -248,50 +247,50 @@ async fn store_vectors(
     ).await.context("failed to delete")?;
 
     for block in blocks {
-        let text = block.block_type.plain_text();
         if let BlockType::Code { code: _ } = block.block_type {
             continue;
         }
-        for text in text {
-            if text.is_none() {
-                continue;
-            }
-            let embedding = cloudflare
-                .bge_small_en_v1_5(TextEmbeddingsRequest {
-                    text: text.unwrap().as_str().into(),
-                })
-                .await
-                .context(format!(
-                    "failed to embed. block id: {:?}",
-                    block.id
-                ))?;
 
-            let Some(id) = &block.id else {
-                continue;
-            };
+        let texts = block
+            .block_type
+            .plain_text()
+            .into_iter()
+            .flatten()
+            .collect::<Vec<String>>()
+            .join(" ");
 
-            let Some(vectors) = embedding.result.data.first() else {
-                continue;
-            };
-
-            let mut map = HashMap::new();
-            map.insert("id".to_string(), Value::from(id.clone()));
-            map.insert("page_id".to_string(), Value::from(page_id));
-
-            let points = vec![PointStruct::new(
-                PointId::from(id.to_string()),
-                vectors.clone(),
-                Payload::new_from_hashmap(map),
-            )];
-
-            qdrant
-                .upsert_points(collection.clone(), None, points, None)
-                .await
-                .context(format!(
-                    "failed to upsert. block id: {:?}",
-                    block.id
-                ))?;
+        if texts.is_empty() {
+            continue;
         }
+        let Some(id) = &block.id else {
+            continue;
+        };
+
+        let embedding = cloudflare
+            .bge_small_en_v1_5(TextEmbeddingsRequest {
+                text: texts.as_str().into(),
+            })
+            .await
+            .context(format!("failed to embed. block id: {:?}", id))?;
+
+        let Some(vectors) = embedding.result.data.first() else {
+            continue;
+        };
+
+        let mut map = HashMap::new();
+        map.insert("id".to_string(), Value::from(id.clone()));
+        map.insert("page_id".to_string(), Value::from(page_id));
+
+        let points = vec![PointStruct::new(
+            PointId::from(id.to_string()),
+            vectors.clone(),
+            Payload::new_from_hashmap(map),
+        )];
+
+        qdrant
+            .upsert_points(collection.clone(), None, points, None)
+            .await
+            .context(format!("failed to upsert. block id: {:?}", block.id))?;
     }
 
     Ok(())
