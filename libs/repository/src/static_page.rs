@@ -28,7 +28,6 @@ impl From<static_page::Model> for StaticPageEntity {
             notion_page_id: value.notion_page_id,
             created_at: value.created_at.and_utc(),
             updated_at: value.updated_at.map(|f| Utc.from_utc_datetime(&f)),
-            contents: value.contents,
         }
     }
 }
@@ -41,7 +40,6 @@ impl From<StaticPageEntity> for static_page::ActiveModel {
             updated_at: ActiveValue::set(
                 value.updated_at.map(|f| f.naive_utc()),
             ),
-            contents: ActiveValue::set(value.contents),
         }
     }
 }

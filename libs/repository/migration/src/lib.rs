@@ -9,6 +9,7 @@ mod m20240407_034855_create_notion_database_table;
 mod m20240512_100556_create_static_page_table;
 mod m20240512_104914_rename_to_notion_parent_id_table;
 mod m20240512_110241_add_parent_type_column;
+mod m20240512_123038_remove_contents_column;
 
 pub struct Migrator;
 
@@ -27,6 +28,7 @@ impl MigratorTrait for Migrator {
                 m20240512_104914_rename_to_notion_parent_id_table::Migration,
             ),
             Box::new(m20240512_110241_add_parent_type_column::Migration),
+            Box::new(m20240512_123038_remove_contents_column::Migration),
         ]
     }
 }

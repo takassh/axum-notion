@@ -9,7 +9,6 @@ pub struct Model {
     pub notion_page_id: String,
     pub created_at: DateTime,
     pub updated_at: Option<DateTime>,
-    pub contents: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
