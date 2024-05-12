@@ -18,4 +18,4 @@ chrono = "0.4.34"
 log = "0.4.21"
 anyhow = "1.0.81"
 strum = { version = "0.26.2" }
-shuttle-persist = "0.42.0"
+shuttle-persist = "0.44.0"
