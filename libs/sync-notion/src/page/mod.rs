@@ -50,6 +50,7 @@ fn sender(
                 .find_all()
                 .await?
                 .into_iter()
+                .filter(|p| p.parent_type == ParentType::Database)
                 .map(|p| p.notion_page_id)
                 .collect();
             let mut join_handles = vec![];

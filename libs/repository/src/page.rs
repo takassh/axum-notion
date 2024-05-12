@@ -88,7 +88,7 @@ impl PageRepository {
 
     pub async fn find_by_id(
         &self,
-        id: String,
+        id: &str,
     ) -> anyhow::Result<Option<PageEntity>> {
         let page = page::Entity::find()
             .filter(Column::NotionPageId.eq(id))

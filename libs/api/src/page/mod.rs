@@ -80,7 +80,7 @@ pub async fn get_page(
     let page = state
         .repo
         .page
-        .find_by_id(id)
+        .find_by_id(&id)
         .await
         .into_response("502-002")?;
 
