@@ -7,7 +7,7 @@ use notion_client::{
     objects::{page::Page, parent::Parent},
 };
 
-use entity::{post::Category, prelude::*};
+use entity::{page::ParentType, post::Category, prelude::*};
 use qdrant_client::qdrant::{Condition, FieldCondition, Filter, Match};
 use std::{collections::HashSet, sync::Arc, time::Duration, vec};
 use tokio::{join, task::JoinHandle};
@@ -40,6 +40,8 @@ fn sender(
     tokio::spawn(async move {
         loop {
             let state = state.clone();
+
+            // For pages
             let notion_database_ids =
                 state.repository.notion_database_id.find_all().await?;
             let all_page_ids: HashSet<String> = state
@@ -50,9 +52,7 @@ fn sender(
                 .into_iter()
                 .map(|p| p.notion_page_id)
                 .collect();
-
             let mut join_handles = vec![];
-
             for notion_database_id in notion_database_ids {
                 let tx = tx.clone();
                 let state = state.clone();
@@ -104,6 +104,44 @@ fn sender(
                     page_ids = format!("{:?}", page_ids),
                     error = e.to_string(),
                 );
+            }
+
+            sleep(Duration::from_secs(state.pause_secs)).await;
+
+            // For static pages
+            let notion_static_page_ids = state
+                .repository
+                .static_page
+                .find_all()
+                .await?
+                .into_iter()
+                .map(|p| p.notion_page_id);
+            for notion_static_page_id in notion_static_page_ids {
+                sleep(Duration::from_secs(state.pause_secs)).await;
+
+                let page = state
+                    .client
+                    .pages
+                    .retrieve_a_page(&notion_static_page_id, None)
+                    .await;
+
+                let Ok(page) = page else {
+                    error!(
+                        task = "retrieve_a_page",
+                        notion_static_page_id,
+                        error = page.unwrap_err().to_string(),
+                    );
+                    continue;
+                };
+
+                let result = tx.send(Message::Save { pages: vec![page] }).await;
+                if let Err(e) = result {
+                    error!(
+                        task = "scan all static pages",
+                        notion_static_page_id,
+                        error = e.to_string(),
+                    );
+                }
             }
 
             sleep(Duration::from_secs(state.pause_secs)).await;
@@ -165,15 +203,25 @@ fn receiver(
                     for page in pages {
                         let json = serde_json::to_string_pretty(&page).unwrap();
                         let parent_id = match page.parent {
-                            Parent::DatabaseId { database_id } => database_id,
+                            Parent::DatabaseId { ref database_id } => {
+                                database_id
+                            }
+                            Parent::PageId { ref page_id } => page_id,
                             _ => continue,
                         };
                         let model = PageEntity {
                             notion_page_id: page.id.clone(),
-                            notion_database_id: parent_id,
+                            notion_parent_id: parent_id.to_string(),
+                            parent_type: match page.parent {
+                                Parent::DatabaseId { .. } => {
+                                    ParentType::Database
+                                }
+                                Parent::PageId { .. } => ParentType::Page,
+                                _ => ParentType::Database,
+                            },
                             contents: json,
                             created_at: page.created_time,
-                            ..Default::default()
+                            updated_at: None,
                         };
 
                         let result =

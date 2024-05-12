@@ -377,7 +377,7 @@ async fn save_page(state: &ApiState, id: &str) -> anyhow::Result<()> {
     };
     let model = PageEntity {
         notion_page_id: page.id,
-        notion_database_id: parent_id,
+        notion_parent_id: parent_id,
         contents: json,
         created_at: page.created_time,
         ..Default::default()

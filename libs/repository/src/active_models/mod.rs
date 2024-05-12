@@ -8,3 +8,4 @@ pub mod notion_database;
 pub mod page;
 pub mod post;
 pub mod sea_orm_active_enums;
+pub mod static_page;

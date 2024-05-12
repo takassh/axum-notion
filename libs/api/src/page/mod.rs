@@ -4,6 +4,7 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use entity::page::ParentType;
 
 pub mod request;
 pub mod response;
@@ -44,6 +45,7 @@ pub async fn get_pages(
             params.pagination.page,
             params.pagination.limit,
             params.category,
+            Some(ParentType::Database),
         )
         .await
         .into_response("502-001")?;

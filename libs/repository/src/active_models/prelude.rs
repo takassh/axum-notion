@@ -5,3 +5,4 @@ pub use super::event::Entity as Event;
 pub use super::notion_database::Entity as NotionDatabase;
 pub use super::page::Entity as Page;
 pub use super::post::Entity as Post;
+pub use super::static_page::Entity as StaticPage;

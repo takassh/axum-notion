@@ -9,6 +9,7 @@ use page::PageRepository;
 use post::PostRepository;
 use sea_orm::{ConnectOptions, Database};
 use shuttle_persist::PersistInstance;
+use static_page::StaticPageRepository;
 use top::TopRepository;
 
 mod active_models;
@@ -17,6 +18,7 @@ pub mod event;
 pub mod notion_database;
 pub mod page;
 pub mod post;
+pub mod static_page;
 pub mod top;
 
 #[derive(Clone, Debug)]
@@ -26,6 +28,7 @@ pub struct Repository {
     pub block: BlockRepository,
     pub event: EventRepository,
     pub notion_database_id: NotionDatabaseRepository,
+    pub static_page: StaticPageRepository,
     pub top: Option<TopRepository>,
 }
 
@@ -45,6 +48,7 @@ impl Repository {
         Ok(Self {
             post: PostRepository::new(db.clone()),
             page: PageRepository::new(db.clone()),
+            static_page: StaticPageRepository::new(db.clone()),
             block: BlockRepository::new(db.clone()),
             event: EventRepository::new(db.clone()),
             notion_database_id: NotionDatabaseRepository::new(db.clone()),
