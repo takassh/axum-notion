@@ -50,7 +50,6 @@ fn sender(
                 .find_all()
                 .await?
                 .into_iter()
-                .filter(|p| p.parent_type == ParentType::Database)
                 .map(|p| p.notion_page_id)
                 .collect();
             let mut join_handles = vec![];
@@ -86,27 +85,6 @@ fn sender(
                 join_handles.push(join_handle);
             }
 
-            let results = join_all(join_handles).await;
-            let mut new_page_ids = HashSet::new();
-            for result in results.into_iter().flatten() {
-                new_page_ids.extend(result);
-            }
-
-            let page_ids: HashSet<String> =
-                all_page_ids.difference(&new_page_ids).cloned().collect();
-            let result = tx
-                .send(Message::Delete {
-                    page_ids: page_ids.clone(),
-                })
-                .await;
-            if let Err(e) = result {
-                error!(
-                    task = "send delete",
-                    page_ids = format!("{:?}", page_ids),
-                    error = e.to_string(),
-                );
-            }
-
             sleep(Duration::from_secs(state.pause_secs)).await;
 
             // For static pages
@@ -117,7 +95,7 @@ fn sender(
                 .await?
                 .into_iter()
                 .map(|p| p.notion_page_id);
-            for notion_static_page_id in notion_static_page_ids {
+            for notion_static_page_id in notion_static_page_ids.clone() {
                 sleep(Duration::from_secs(state.pause_secs)).await;
 
                 let page = state
@@ -143,6 +121,31 @@ fn sender(
                         error = e.to_string(),
                     );
                 }
+            }
+
+            // delete unused pages
+            let results = join_all(join_handles).await;
+            let mut new_page_ids = HashSet::new();
+            for result in results.into_iter().flatten() {
+                new_page_ids.extend(result);
+            }
+            for id in notion_static_page_ids {
+                new_page_ids.insert(id);
+            }
+
+            let page_ids: HashSet<String> =
+                all_page_ids.difference(&new_page_ids).cloned().collect();
+            let result = tx
+                .send(Message::Delete {
+                    page_ids: page_ids.clone(),
+                })
+                .await;
+            if let Err(e) = result {
+                error!(
+                    task = "send delete",
+                    page_ids = format!("{:?}", page_ids),
+                    error = e.to_string(),
+                );
             }
 
             sleep(Duration::from_secs(state.pause_secs)).await;
