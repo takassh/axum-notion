@@ -3385,7 +3385,7 @@ dependencies = [
  "log",
  "migration",
  "sea-orm",
- "shuttle-persist",
+ "shuttle-persist 0.42.0",
  "strum 0.26.2",
 ]
 
@@ -4134,9 +4134,9 @@ dependencies = [
 
 [[package]]
 name = "shuttle-axum"
-version = "0.42.0"
+version = "0.44.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92b5da6adec6308876d96ba9acc8be7592eb3621f97c59900a411e18a0d52b76"
+checksum = "393469f82e5aa60e866035103bae24b54f9ad61caef1fc4e912c47b0170af95c"
 dependencies = [
  "axum 0.7.4",
  "shuttle-runtime",
@@ -4144,9 +4144,9 @@ dependencies = [
 
 [[package]]
 name = "shuttle-codegen"
-version = "0.42.0"
+version = "0.44.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbaaa74ae77edfc5590c87af97bfc15d0aff2db9ff4a5fd891be0a7dd0de8089"
+checksum = "3a0ba1965be7df9f6eacf86ce8e7d13371972620f1b512afb16de0fb7f9842fb"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -4159,6 +4159,27 @@ name = "shuttle-common"
 version = "0.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "910ae1502f083563f06fee5d5ceb2a8b45f92c67ef7834806880484f15d79bb5"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "comfy-table",
+ "crossterm 0.27.0",
+ "semver",
+ "serde",
+ "serde_json",
+ "strum 0.26.2",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "shuttle-common"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f4a7cbeba0ac04ff93e60e7c9cd3fb7a1a06df108b7c6c81ec4237283189f5a"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4190,41 +4211,51 @@ dependencies = [
  "async-trait",
  "bincode",
  "serde",
- "shuttle-service",
+ "shuttle-service 0.42.0",
+ "thiserror",
+]
+
+[[package]]
+name = "shuttle-persist"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff6c87e3305dc4ee95d512c9885619f1e72c951cfbcd50e4522df63945800bfa"
+dependencies = [
+ "async-trait",
+ "bincode",
+ "serde",
+ "shuttle-service 0.44.0",
  "thiserror",
 ]
 
 [[package]]
 name = "shuttle-proto"
-version = "0.42.0"
+version = "0.44.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad7aa381187faaa32562c1e3631047b1edd070c055be50a5f32d13a538110fd7"
+checksum = "aa562975ec33dfdb0535864e351f0d632af1306f877481bbc5a597bfb7b8ee2e"
 dependencies = [
  "futures-core",
  "prost 0.12.4",
  "prost-types 0.12.4",
- "shuttle-common",
+ "shuttle-common 0.44.0",
  "tonic 0.10.2",
 ]
 
 [[package]]
 name = "shuttle-runtime"
-version = "0.42.0"
+version = "0.44.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "322f013c5058e37bf19a9ad8af35a2ac139605b0cbd941c0d0a009d032e23b73"
+checksum = "9468e399b464fc49a9e2a89beeb29d5a685c3eb38cbdd4f7da28ae6db055ab86"
 dependencies = [
  "anyhow",
  "async-trait",
- "chrono",
- "prost-types 0.12.4",
  "serde",
  "serde_json",
  "shuttle-codegen",
- "shuttle-common",
+ "shuttle-common 0.44.0",
  "shuttle-proto",
- "shuttle-service",
+ "shuttle-service 0.44.0",
  "strfmt",
- "thiserror",
  "tokio",
  "tokio-stream",
  "tonic 0.10.2",
@@ -4239,22 +4270,36 @@ dependencies = [
  "anyhow",
  "async-trait",
  "serde",
- "shuttle-common",
+ "shuttle-common 0.42.0",
+ "strfmt",
+ "thiserror",
+]
+
+[[package]]
+name = "shuttle-service"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4687d5f97c43826faf9f2fa665d475696fc71857e5960c3112664480a4a6e6c"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "shuttle-common 0.44.0",
  "strfmt",
  "thiserror",
 ]
 
 [[package]]
 name = "shuttle-shared-db"
-version = "0.42.0"
+version = "0.44.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c106b44d5d07b85dc495c10fc025a4cf365d5767992e2efcd6fe3e74ccbf3d9d"
+checksum = "f79157e7cd1e86f3661f3b45c0374ad9815fd65224b9573195ff8a9e6da2ab49"
 dependencies = [
  "async-trait",
  "diesel-async",
  "serde",
  "serde_json",
- "shuttle-service",
+ "shuttle-service 0.44.0",
  "sqlx",
 ]
 
@@ -4831,7 +4876,7 @@ dependencies = [
  "qdrant-client",
  "repository",
  "shuttle-axum",
- "shuttle-persist",
+ "shuttle-persist 0.44.0",
  "shuttle-runtime",
  "shuttle-shared-db",
  "sync-github",
