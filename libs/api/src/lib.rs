@@ -4,9 +4,10 @@ use axum::{middleware, routing::get, routing::post, Router};
 
 use qdrant_client::client::QdrantClient;
 use repository::Repository;
+use reqwest::header::AUTHORIZATION;
 use tokio::sync::OnceCell;
 use toml::{map::Map, Value};
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 use util::workspace_dir;
 use utoipa::OpenApi;
@@ -108,7 +109,6 @@ pub async fn serve(
         },
     });
 
-    let origins = ["http://localhost:3000".parse().unwrap()];
     // pages
     let page_router = Router::new()
         .route("/", get(page::get_pages))
@@ -183,7 +183,12 @@ pub async fn serve(
         .route_layer(middleware::from_fn(auth::auth))
         .nest("/ws", ws_router)
         .nest("/top", top_router)
-        .layer(CorsLayer::new().allow_origin(origins))
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers([AUTHORIZATION]),
+        )
         .fallback(not_found::get_404);
 
     Ok(router)
