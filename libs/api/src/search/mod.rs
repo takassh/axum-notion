@@ -71,6 +71,9 @@ pub async fn search_text(
 
     let mut context: Vec<&str> = vec![];
     for result in search_result.result.iter() {
+        if result.score < 0.6 {
+            continue;
+        }
         let Some(doc) = result.payload.get("document") else {
             continue;
         };
@@ -85,6 +88,7 @@ pub async fn search_text(
         r#"
         You are an assistant helping a user to search for something.
         The user provides a prompt "{}" and you need to generate a response based on given contexts.
+        If the context doesn't make sense with the prompt, you should answer you don't know.
         Your answer must be concise.
 
         Context:

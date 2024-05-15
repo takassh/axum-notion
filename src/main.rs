@@ -32,7 +32,7 @@ async fn main(
     let aws_url = secret_store.get("AWS_URL").unwrap();
     let bucket = secret_store.get("BUCKET").unwrap();
 
-    let accept_api_key = secret_store.get("ACCEPTABLE_API_KEY").unwrap();
+    let accept_user = secret_store.get("ACCEPT_USER").unwrap();
 
     let config_name =
         &format!("Config{}", secret_store.get("CONFIG").unwrap().as_str());
@@ -103,7 +103,7 @@ async fn main(
             s3,
             bucket,
             config_name,
-            accept_api_key
+            accept_user,
         )
     );
 

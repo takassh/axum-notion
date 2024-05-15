@@ -16,3 +16,6 @@ s3_url = "https://bucket.takassh.com"
 [qdrant]
 base_url = "https://37feeba7-135c-48c4-a8a9-93a52b2b1de7.us-east4-0.gcp.cloud.qdrant.io:6334"
 collection = "notion"
+
+[auth0]
+jwks_url = "https://dev-u7c1mp0ly3sefzab.us.auth0.com/.well-known/jwks.json"

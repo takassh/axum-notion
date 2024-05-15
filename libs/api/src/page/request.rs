@@ -9,3 +9,13 @@ pub struct GetPagesParam {
     #[serde(flatten)]
     pub pagination: Pagination,
 }
+
+#[derive(Deserialize, ToSchema, IntoParams)]
+pub struct GenerateCoverImageParam {
+    pub prompt: String,
+}
+
+#[derive(Deserialize, ToSchema, IntoParams)]
+pub struct GenerateSummarizeParam {
+    pub text: String,
+}

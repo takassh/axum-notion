@@ -30,7 +30,6 @@ mod response;
 pub mod runtime;
 pub mod search;
 pub mod top;
-pub mod ws;
 
 pub enum ApiError {
     AuthError(String),
@@ -61,7 +60,8 @@ pub struct Qdrant {
     pub collection: String,
 }
 
-static ACCEPT_API_KEY: OnceCell<String> = OnceCell::const_new();
+static ACCEPT_USER: OnceCell<String> = OnceCell::const_new();
+static JWKS_URL: OnceCell<String> = OnceCell::const_new();
 
 #[allow(clippy::too_many_arguments)]
 pub async fn serve(
@@ -72,7 +72,7 @@ pub async fn serve(
     s3: aws_sdk_s3::Client,
     bucket: String,
     config_name: &str,
-    accept_api_key: String,
+    accept_user: String,
 ) -> anyhow::Result<Router> {
     #[utoipauto(paths = "./libs/api/src")]
     #[derive(OpenApi)]
@@ -85,9 +85,12 @@ pub async fn serve(
 
     info!(task = "start api serving");
 
-    ACCEPT_API_KEY.set(accept_api_key).unwrap();
-
     let config = load_config(config_name)?;
+
+    ACCEPT_USER.set(accept_user).unwrap();
+    JWKS_URL
+        .set(config["auth0"]["jwks_url"].as_str().unwrap().to_string())
+        .unwrap();
 
     let state = Arc::new(ApiState {
         repo: repository.clone(),
@@ -111,17 +114,14 @@ pub async fn serve(
 
     // pages
     let page_router = Router::new()
-        .route("/", get(page::get_pages))
-        .route("/:id", get(page::get_page))
         .route(
             "/:id/generate-cover-image",
             post(page::generate_cover_image),
         )
-        .route(
-            "/:id/generate-cover-image-from-plain-texts",
-            post(page::generate_cover_image_from_plain_texts),
-        )
         .route("/:id/generate-summary", post(page::generate_summarize))
+        .route_layer(middleware::from_fn(auth::auth))
+        .route("/", get(page::get_pages))
+        .route("/:id", get(page::get_page))
         .fallback(not_found::get_404)
         .with_state(state.clone());
 
@@ -151,15 +151,10 @@ pub async fn serve(
         .route("/receive", get(receive))
         .with_state(repository.clone());
 
-    // posts
-    let ws_router = Router::new()
-        .route("/", get(ws::ws))
-        .fallback(not_found::get_404)
-        .with_state(state.clone());
-
     // search
     let search_router = Router::new()
         .route("/", get(search::search_text))
+        .route_layer(middleware::from_fn(auth::auth))
         .fallback(not_found::get_404)
         .with_state(state.clone());
 
@@ -180,8 +175,6 @@ pub async fn serve(
         .nest("/posts", post_router)
         .nest("/search", search_router)
         // .nest("/runtime", runtime_router)
-        .route_layer(middleware::from_fn(auth::auth))
-        .nest("/ws", ws_router)
         .nest("/top", top_router)
         .layer(
             CorsLayer::new()

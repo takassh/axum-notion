@@ -2,16 +2,16 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 #[derive(Serialize, ToSchema)]
-pub struct Page {
+pub struct ResponsePage {
     pub contents: String,
 }
 
 #[derive(Serialize, ToSchema)]
 pub struct GetPagesResponse {
-    pub pages: Vec<Page>,
+    pub pages: Vec<ResponsePage>,
 }
 
 #[derive(Serialize, ToSchema)]
 pub struct GetPageResponse {
-    pub page: Option<Page>,
+    pub page: Option<ResponsePage>,
 }

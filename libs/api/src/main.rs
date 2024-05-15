@@ -41,8 +41,7 @@ async fn main() -> anyhow::Result<()> {
         .await;
     let s3 = aws_sdk_s3::Client::new(&cfg);
 
-    let accept_api_key =
-        secrets.get("ACCEPTABLE_API_KEY").unwrap().as_str().unwrap();
+    let accept_user = secrets.get("ACCEPT_USER").unwrap().as_str().unwrap();
 
     let config_name = &format!(
         "Config{}",
@@ -85,7 +84,7 @@ async fn main() -> anyhow::Result<()> {
         s3,
         bucket.to_string(),
         config_name,
-        accept_api_key.to_string(),
+        accept_user.to_string(),
     )
     .await?;
 
