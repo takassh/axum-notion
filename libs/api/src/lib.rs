@@ -4,7 +4,6 @@ use axum::{middleware, routing::get, routing::post, Router};
 
 use qdrant_client::client::QdrantClient;
 use repository::Repository;
-use reqwest::header::AUTHORIZATION;
 use tokio::sync::OnceCell;
 use toml::{map::Map, Value};
 use tower_http::cors::{Any, CorsLayer};
