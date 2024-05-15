@@ -180,7 +180,7 @@ pub async fn serve(
             CorsLayer::new()
                 .allow_origin(Any)
                 .allow_methods(Any)
-                .allow_headers([AUTHORIZATION]),
+                .allow_headers(Any),
         )
         .fallback(not_found::get_404);
 
