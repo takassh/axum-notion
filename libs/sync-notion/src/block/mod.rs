@@ -184,6 +184,66 @@ fn receiver(
             };
 
             let parent_id = &message.parent_id;
+
+            // Check if this page has been updated
+            let mut last_edited_time_map = HashMap::new();
+            for block in &message.blocks {
+                if let Some(edited_at) = block.last_edited_time {
+                    last_edited_time_map.insert(block.id.clone(), edited_at);
+                }
+            }
+
+            let Ok(stored) = state
+                .repository
+                .block
+                .find_by_notion_page_id(parent_id)
+                .await
+            else {
+                continue;
+            };
+
+            let need_update = match stored {
+                None => true,
+                Some(stored) => {
+                    let stored_contents =
+                        serde_json::from_str::<Vec<Block>>(&stored.contents);
+                    let Ok(stored_blocks) = stored_contents else {
+                        error!(
+                            task = "desierialize stored blocks",
+                            parent_id,
+                            error = stored_contents.unwrap_err().to_string(),
+                        );
+                        continue;
+                    };
+
+                    let mut need_update = false;
+                    for stored_block in stored_blocks {
+                        if let Some(last_edited_at) =
+                            last_edited_time_map.get(&stored_block.id)
+                        {
+                            if *last_edited_at
+                                > stored_block
+                                    .last_edited_time
+                                    .unwrap_or_default()
+                            {
+                                need_update = true;
+                                break;
+                            }
+                        } else {
+                            need_update = true;
+                            break;
+                        }
+                        last_edited_time_map.remove(&stored_block.id);
+                    }
+
+                    need_update || !last_edited_time_map.is_empty()
+                }
+            };
+
+            if !need_update {
+                continue;
+            }
+
             let json = serde_json::to_string_pretty(&message.blocks).unwrap();
             let model = BlockEntity {
                 notion_page_id: parent_id.to_string(),

@@ -54,7 +54,7 @@ impl BlockRepository {
 
     pub async fn find_by_notion_page_id(
         &self,
-        id: String,
+        id: &str,
     ) -> anyhow::Result<Option<BlockEntity>> {
         let block = block::Entity::find()
             .filter(Column::NotionPageId.eq(id))

@@ -34,7 +34,7 @@ pub async fn get_block(
 ) -> ApiResponse<Json<GetBlockResponse>> {
     let block = repo
         .block
-        .find_by_notion_page_id(id)
+        .find_by_notion_page_id(&id)
         .await
         .into_response("502-004")?;
 
