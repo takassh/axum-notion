@@ -81,6 +81,7 @@ pub async fn serve(
                     config: Some(Config::Params(VectorParams {
                         size: 384,
                         distance: 1,
+                        on_disk: Some(true),
                         ..Default::default()
                     })),
                 }),
