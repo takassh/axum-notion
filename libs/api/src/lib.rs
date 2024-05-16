@@ -153,7 +153,7 @@ pub async fn serve(
     // search
     let search_router = Router::new()
         .route("/", get(search::search_text))
-        .route("/sse", get(search::search_text_with_sse))
+        .route("/sse", post(search::search_text_with_sse))
         .route_layer(middleware::from_fn(auth::auth))
         .fallback(not_found::get_404)
         .with_state(state.clone());

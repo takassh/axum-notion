@@ -6,7 +6,10 @@ use axum::{
 };
 use cloudflare::models::{
     text_embeddings::{StringOrArray, TextEmbeddings, TextEmbeddingsRequest},
-    text_generation::{PromptRequest, TextGeneration, TextGenerationRequest},
+    text_generation::{
+        Message, MessageRequest, PromptRequest, TextGeneration,
+        TextGenerationRequest,
+    },
 };
 use futures_util::{pin_mut, Stream};
 use qdrant_client::qdrant::{
@@ -78,7 +81,7 @@ pub async fn search_text(
 
 pub async fn search_text_with_sse(
     State(state): State<Arc<ApiState>>,
-    Query(params): Query<SearchParam>,
+    Json(params): Json<SearchParam>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let stream = stream! {
     let context = retriever(&state, &params.prompt).await;
@@ -90,31 +93,69 @@ pub async fn search_text_with_sse(
         return;
     };
 
-    let prompt = format!(
-        r#"
+    let system_prompt = r#"
         You are an assistant helping a user to search for something.
-        The user provides a prompt "{}" and you need to generate a response based on given contexts.
+        The user provides a prompt and you generate a response based on given contexts.
         If the context doesn't make sense with the prompt, you should answer you don't know.
         Your answer must be concise.
+        "#.to_string();
 
-        Context:
+    let user_prompt = format!(
+        r#"
+        Prompt: 
         "{}"
 
-        Answer:
+        Context: 
+        "{}"
         "#,
         params.prompt,
         context.join("\n")
     );
 
+    let mut messages = params.history;
+    messages.insert(0,Message {
+        role: "system".to_string(),
+        content: system_prompt.to_string(),
+    });
+    messages.insert(1,Message {
+        role: "user".to_string(),
+        content: r#"
+        Prompt: 
+        "Hello, What can you help me?"
+
+        Context: 
+        You are an assistant helping a user to search for something.
+        "#.to_string(),
+    });
+    messages.insert(2,Message {
+        role: "assistant".to_string(),
+        content: "Hello, I can help you with searching.".to_string(),
+    });
+    messages.push(Message {
+        role: "user".to_string(),
+        content: user_prompt.to_string(),
+    });
+
+
     let response = state
-        .cloudflare
-        .llama_3_8b_instruct_with_stream(TextGenerationRequest::Prompt(
-            PromptRequest {
-                prompt: prompt.to_string(),
-                stream: Some(true),
-                ..Default::default()
-            },
-        ));
+    .cloudflare
+    .llama_3_8b_instruct_with_stream(TextGenerationRequest::Message(
+        MessageRequest {
+            messages,
+            stream: Some(true),
+            ..Default::default()
+        },
+    ));
+
+    // let response = state
+    //     .cloudflare
+    //     .llama_3_8b_instruct_with_stream(TextGenerationRequest::Prompt(
+    //         PromptRequest {
+    //             prompt: prompt.to_string(),
+    //             stream: Some(true),
+    //             ..Default::default()
+    //         },
+    //     ));
 
 
         pin_mut!(response); // needed for iteration

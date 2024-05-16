@@ -46,7 +46,7 @@ pub struct MessageRequest {
     pub max_tokens: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Message {
     pub role: String,
     pub content: String,
