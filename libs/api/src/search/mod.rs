@@ -12,6 +12,7 @@ use cloudflare::models::{
     },
 };
 use futures_util::{pin_mut, Stream};
+use tracing::info;
 
 use qdrant_client::qdrant::{
     with_payload_selector::SelectorOptions, PayloadIncludeSelector,
@@ -298,6 +299,12 @@ async fn retriever(
         };
         page_ids.push(page_id.to_string());
     }
+
+    info!(
+        task = "retriever",
+        prompt = prompt,
+        context = context.join("\n"),
+    );
 
     Ok((context, page_ids))
 }
