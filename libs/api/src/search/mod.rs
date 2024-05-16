@@ -275,7 +275,7 @@ async fn retriever(
     let mut context: Vec<String> = vec![];
     let mut page_ids: Vec<String> = vec![];
     for result in search_result.result.iter() {
-        if result.score < 0.5 {
+        if result.score < 0.6 {
             continue;
         }
 
