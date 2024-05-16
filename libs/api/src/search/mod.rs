@@ -99,7 +99,7 @@ pub async fn search_text_with_sse(
             let system_prompt = r#"
         You are an assistant helping a user who gives you a prompt.
         You are placed on my blog site.
-        Each time the user gives you a prompt, you get information and page ids relating to the prompt.
+        Each time the user gives you a prompt, you get external information and relating to the prompt.
         If you aren't familiar with the prompt, you should answer you don't know.
         "#.to_string();
 
@@ -257,7 +257,7 @@ async fn retriever(
         .search_points(&SearchPoints {
             collection_name: state.config.qdrant.collection.clone(),
             vector: vector.clone(),
-            limit: 3,
+            limit: 5,
             with_payload: Some(WithPayloadSelector {
                 selector_options: Some(SelectorOptions::Include(
                     PayloadIncludeSelector {
@@ -275,7 +275,7 @@ async fn retriever(
     let mut context: Vec<String> = vec![];
     let mut page_ids: Vec<String> = vec![];
     for result in search_result.result.iter() {
-        if result.score < 0.6 {
+        if result.score < 0.5 {
             continue;
         }
 
