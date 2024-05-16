@@ -45,7 +45,7 @@ pub async fn search_text(
     State(state): State<Arc<ApiState>>,
     Query(params): Query<SearchParam>,
 ) -> ApiResponse<Json<SearchResponse>> {
-    let context = retriever(&state, &params.prompt)
+    let (context, _) = retriever(&state, &params.prompt)
         .await
         .into_response("502-012")?;
 
@@ -84,11 +84,11 @@ pub async fn search_text_with_sse(
     Json(params): Json<SearchParam>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let stream = stream! {
-    let context = retriever(&state, &params.prompt).await;
-    let Ok(context) = context else {
+    let result = retriever(&state, &params.prompt).await;
+    let Ok((context,page_ids)) = result else {
         error!(
             task = "get context by retriever",
-            error = context.unwrap_err().to_string(),
+            error = result.unwrap_err().to_string(),
         );
         return;
     };
@@ -96,21 +96,23 @@ pub async fn search_text_with_sse(
     let system_prompt = r#"
         You are an assistant helping a user who gives you a prompt.
         You are placed on my blog site.
-        Each time the user gives you a prompt, you can get some external information.
-        Referencing all information and using your knowledge, you generate a response to the given prompt.
-        If you don't familiar with the prompt, you should answer you don't know.
+        Each time the user gives you a prompt, you get information and page ids relating to the prompt.
+        Referencing them and using your knowledge, you respond to the given prompt.
+        If you aren't familiar with the prompt, you should answer you don't know.
         "#.to_string();
 
     let user_prompt = format!(
         r#"
         Prompt: 
         "{}"
-
-        External Information: 
+        Information: 
+        "{}"
+        Page IDs: 
         "{}"
         "#,
         params.prompt,
-        context.join("\n")
+        context.join("\n"),
+        page_ids.join(",")
     );
 
     let mut messages = params.history;
@@ -123,14 +125,21 @@ pub async fn search_text_with_sse(
         content: r#"
         Prompt: 
         "Hello, What can you help me?"
-        External Information: 
+        Information: 
         You are an assistant helping a user to search for something.
         You are created by Takashi, who is a software engineer and the owner where you are placed.
+        Page IDs:
+        74c5e456-0feb-4049-a217-ba6ad67869ca,74c5e456-0feb-4049-a217-ba6ad67869ca
         "#.to_string(),
     });
     messages.insert(2,Message {
         role: "assistant".to_string(),
-        content: "Hello, I can help you with searching. And I'm created by Takashi. He is a software engineer and the owner of this site".to_string(),
+        content: r#"
+        {
+            "answer": "Hello, I can help you with searching. And I'm created by Takashi. He is a software engineer and the owner of this site.",
+            "page_ids": ["74c5e456-0feb-4049-a217-ba6ad67869ca","74c5e456-0feb-4049-a217-ba6ad67869ca"]
+        }
+        "#.to_string(),
     });
     messages.push(Message {
         role: "user".to_string(),
@@ -170,7 +179,7 @@ pub async fn search_text_with_sse(
 async fn retriever(
     state: &Arc<ApiState>,
     prompt: &str,
-) -> anyhow::Result<Vec<String>> {
+) -> anyhow::Result<(Vec<String>, Vec<String>)> {
     let embedding = state
         .cloudflare
         .bge_small_en_v1_5(TextEmbeddingsRequest {
@@ -191,7 +200,10 @@ async fn retriever(
             with_payload: Some(WithPayloadSelector {
                 selector_options: Some(SelectorOptions::Include(
                     PayloadIncludeSelector {
-                        fields: vec!["document".to_string()],
+                        fields: vec![
+                            "document".to_string(),
+                            "page_id".to_string(),
+                        ],
                     },
                 )),
             }),
@@ -200,10 +212,13 @@ async fn retriever(
         .await?;
 
     let mut context: Vec<String> = vec![];
+    let mut page_ids: Vec<String> = vec![];
     for result in search_result.result.iter() {
         if result.score < 0.6 {
             continue;
         }
+
+        // Take context
         let Some(doc) = result.payload.get("document") else {
             continue;
         };
@@ -212,7 +227,16 @@ async fn retriever(
         };
 
         context.push(doc.to_string());
+
+        // Take page id
+        let Some(page_id) = result.payload.get("page_id") else {
+            continue;
+        };
+        let Some(page_id) = page_id.as_str() else {
+            continue;
+        };
+        page_ids.push(page_id.to_string());
     }
 
-    Ok(context)
+    Ok((context, page_ids))
 }

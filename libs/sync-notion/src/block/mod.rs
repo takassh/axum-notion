@@ -306,39 +306,42 @@ async fn store_vectors(
         None,
     ).await.context("failed to delete")?;
 
-    for chunk in blocks.chunks(10) {
-        let texts = chunk
-            .iter()
-            .flat_map(|block| block.block_type.plain_text())
-            .flatten()
-            .collect::<Vec<String>>()
-            .join(" ");
+    let mut blocks = blocks
+        .into_iter()
+        .flat_map(|block| block.block_type.plain_text())
+        .flatten();
 
-        if texts.is_empty() {
-            continue;
+    loop {
+        let mut texts = String::new();
+        loop {
+            let Some(text) = blocks.next() else {
+                return Ok(());
+            };
+            if text.is_empty() {
+                continue;
+            }
+
+            texts.push_str(&format!(" {}", text.as_str()));
+
+            if texts.len() > 600 {
+                break;
+            }
         }
-
-        let block_ids = chunk
-            .iter()
-            .flat_map(|block| block.clone().id)
-            .collect::<Vec<String>>()
-            .join("_");
 
         let embedding = cloudflare
             .bge_small_en_v1_5(TextEmbeddingsRequest {
                 text: texts.as_str().into(),
             })
             .await
-            .context(format!("failed to embed. block ids: {}", block_ids))?;
+            .context(format!("failed to embed. {}", texts))?;
 
         let Some(vectors) = embedding.result.data.first() else {
             continue;
         };
 
         let mut map = HashMap::new();
-        map.insert("id".to_string(), Value::from(block_ids.clone()));
         map.insert("page_id".to_string(), Value::from(page_id));
-        map.insert("document".to_string(), Value::from(texts));
+        map.insert("document".to_string(), Value::from(texts.clone()));
 
         let points = vec![PointStruct::new(
             Uuid::new_v4().hyphenated().to_string(),
@@ -349,8 +352,6 @@ async fn store_vectors(
         qdrant
             .upsert_points(collection.clone(), None, points, None)
             .await
-            .context(format!("failed to upsert. block ids: {:?}", block_ids))?;
+            .context(format!("failed to upsert. {}", texts))?;
     }
-
-    Ok(())
 }
