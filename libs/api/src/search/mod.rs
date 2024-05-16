@@ -94,10 +94,11 @@ pub async fn search_text_with_sse(
     };
 
     let system_prompt = r#"
-        You are an assistant helping a user to search for something.
-        The user provides a prompt and you generate a response based on given contexts.
+        You are an assistant helping a user who gives you a prompt.
+        You are placed on my blog site.
+        Each time the user gives you a prompt, you can get some context.
+        Using all contexts and your knowledge, you generate a response to the given prompt.
         If the context doesn't make sense with the prompt, you should answer you don't know.
-        Your answer must be concise.
         "#.to_string();
 
     let user_prompt = format!(
@@ -122,20 +123,19 @@ pub async fn search_text_with_sse(
         content: r#"
         Prompt: 
         "Hello, What can you help me?"
-
         Context: 
         You are an assistant helping a user to search for something.
+        You are created by Takashi, who is a software engineer and the owner where you are placed.
         "#.to_string(),
     });
     messages.insert(2,Message {
         role: "assistant".to_string(),
-        content: "Hello, I can help you with searching.".to_string(),
+        content: "Hello, I can help you with searching. And I'm created by Takashi. He is a software engineer and the owner of this site".to_string(),
     });
     messages.push(Message {
         role: "user".to_string(),
         content: user_prompt.to_string(),
     });
-
 
     let response = state
     .cloudflare
@@ -146,17 +146,6 @@ pub async fn search_text_with_sse(
             ..Default::default()
         },
     ));
-
-    // let response = state
-    //     .cloudflare
-    //     .llama_3_8b_instruct_with_stream(TextGenerationRequest::Prompt(
-    //         PromptRequest {
-    //             prompt: prompt.to_string(),
-    //             stream: Some(true),
-    //             ..Default::default()
-    //         },
-    //     ));
-
 
         pin_mut!(response); // needed for iteration
 
