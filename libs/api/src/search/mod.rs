@@ -96,9 +96,9 @@ pub async fn search_text_with_sse(
     let system_prompt = r#"
         You are an assistant helping a user who gives you a prompt.
         You are placed on my blog site.
-        Each time the user gives you a prompt, you can get some context.
-        Using all contexts and your knowledge, you generate a response to the given prompt.
-        If the context doesn't make sense with the prompt, you should answer you don't know.
+        Each time the user gives you a prompt, you can get some external information.
+        Referencing all information and using your knowledge, you generate a response to the given prompt.
+        If you don't familiar with the prompt, you should answer you don't know.
         "#.to_string();
 
     let user_prompt = format!(
@@ -106,7 +106,7 @@ pub async fn search_text_with_sse(
         Prompt: 
         "{}"
 
-        Context: 
+        External Information: 
         "{}"
         "#,
         params.prompt,
@@ -123,7 +123,7 @@ pub async fn search_text_with_sse(
         content: r#"
         Prompt: 
         "Hello, What can you help me?"
-        Context: 
+        External Information: 
         You are an assistant helping a user to search for something.
         You are created by Takashi, who is a software engineer and the owner where you are placed.
         "#.to_string(),
