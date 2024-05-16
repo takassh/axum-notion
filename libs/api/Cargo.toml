@@ -36,4 +36,6 @@ aws-config = { version = "1.2.1", features = ["behavior-version-latest"] }
 chrono = "0.4.38"
 qdrant-client = "1.9.0"
 jsonwebtoken = "9.3.0"
+tokio-stream = "0.1.15"
+async-stream = "0.3.5"
 

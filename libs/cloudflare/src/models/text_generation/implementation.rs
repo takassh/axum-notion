@@ -1,8 +1,11 @@
 use anyhow::Context;
+use async_stream::stream;
+use futures_core::Stream;
 
 use crate::models::{text_generation::LLAMA_3_8B_INSTRUCT, Models};
+use futures_util::StreamExt;
 
-use super::TextGeneration;
+use super::{TextGeneration, TextGenerationJsonResult};
 
 impl TextGeneration for Models {
     async fn llama_3_8b_instruct(
@@ -15,5 +18,19 @@ impl TextGeneration for Models {
             serde_json::from_str(&text).context("failed to parse response")?;
 
         Ok(response)
+    }
+
+    fn llama_3_8b_instruct_with_stream(
+        &self,
+        request: super::TextGenerationRequest,
+    ) -> impl Stream<Item = anyhow::Result<Vec<TextGenerationJsonResult>>> {
+        stream! {
+        let mut stream =
+        self.stream_response(request, LLAMA_3_8B_INSTRUCT).await?;
+                while let Some(s) = stream.next().await.transpose()? {
+                    let data:Vec<TextGenerationJsonResult> = String::from_utf8(s.to_vec())?.split("data: ").flat_map(serde_json::from_str).collect();
+                    yield Ok(data);
+                }
+            }
     }
 }

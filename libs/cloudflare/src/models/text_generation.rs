@@ -1,5 +1,6 @@
 pub mod implementation;
 
+use futures_core::Stream;
 use reqwest::Body;
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +12,11 @@ pub trait TextGeneration {
         request: TextGenerationRequest,
     ) -> impl std::future::Future<Output = anyhow::Result<TextGenerationResponse>>
            + Send;
+
+    fn llama_3_8b_instruct_with_stream(
+        &self,
+        request: TextGenerationRequest,
+    ) -> impl Stream<Item = anyhow::Result<Vec<TextGenerationJsonResult>>> + Send;
 }
 
 #[derive(Debug, Serialize)]
@@ -51,7 +57,7 @@ pub struct TextGenerationResponse {
     pub result: TextGenerationJsonResult,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TextGenerationJsonResult {
     pub response: String,
 }

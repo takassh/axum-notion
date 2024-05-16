@@ -12,10 +12,8 @@
     "502-009": "failed to generate image",
     "502-010": "failed to recache page",
     "502-011": "failed to summarization",
-    "502-012": "failed to embed",
-    "502-013": "failed to search points",
+    "502-012": "failed to retrieve",
     "502-014": "failed to ask llm",
-    "502-015": "failed to retrieve a block",
     "502-016": "failed to put object",
     "502-017": "failed to update page properties",
     "502-018": "failed to save page"

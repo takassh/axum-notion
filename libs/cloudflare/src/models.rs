@@ -82,4 +82,26 @@ impl Models {
 
         Ok(bytes?)
     }
+
+    async fn stream_response<R: Into<Body>>(
+        &self,
+        request: R,
+        model: &str,
+    ) -> anyhow::Result<
+        impl futures_core::Stream<Item = Result<Bytes, reqwest::Error>>,
+    > {
+        let response = self
+            .client
+            .post(format!("{}/{}", self.base_url, model))
+            .body(request)
+            .send()
+            .await?;
+
+        let status_code = response.status();
+        let stream = response.bytes_stream();
+
+        ensure!(status_code.is_success(), "status code: {}", status_code);
+
+        Ok(stream)
+    }
 }

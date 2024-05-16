@@ -14,3 +14,6 @@ serde_json = "1.0.116"
 toml = "0.8.12"
 tokio = { version = "1.37.0", features = ["full"] }
 bytes = "1.6.0"
+futures-core = "0.3.30"
+futures-util = "0.3.30"
+async-stream = "0.3.5"
