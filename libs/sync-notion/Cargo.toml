@@ -14,7 +14,7 @@ tokio = { version = "1.36.0", features = ["macros"] }
 tracing = "0.1.40"
 serde_json = "1.0.113"
 async-recursion = "1.0.5"
-notion-client = "0.1.12"
+notion-client = "0.1.13"
 toml = "0.8.12"
 anyhow = "1.0.81"
 futures = "0.3.30"

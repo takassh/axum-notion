@@ -30,7 +30,7 @@ tokio-util = "0.7.10"
 tempfile = "3.10.1"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 reqwest = "0.12.4"
-notion-client = "0.1.11"
+notion-client = "0.1.13"
 aws-sdk-s3 = { version = "1.24.0", features = ["rt-tokio"] }
 aws-config = { version = "1.2.1", features = ["behavior-version-latest"] }
 chrono = "0.4.38"

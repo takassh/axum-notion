@@ -34,7 +34,7 @@ tracing-loki = "0.2.4"
 base64 = "0.22.0"
 anyhow = "1.0.81"
 futures = "0.3.30"
-notion-client = "0.1.12"
+notion-client = "0.1.13"
 aws-sdk-s3 = { version = "1.24.0", features = ["rt-tokio"] }
 aws-config = { version = "1.2.1", features = ["behavior-version-latest"] }
 qdrant-client = "1.9.0"
