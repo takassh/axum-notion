@@ -2,7 +2,7 @@ use async_stream::stream;
 use axum::{
     extract::{Query, State},
     response::{sse::Event, Sse},
-    Json,
+    Extension, Json,
 };
 use cloudflare::models::{
     text_embeddings::{StringOrArray, TextEmbeddings, TextEmbeddingsRequest},
@@ -11,7 +11,9 @@ use cloudflare::models::{
         TextGenerationRequest,
     },
 };
+use entity::prelude::*;
 use futures_util::{pin_mut, Stream};
+use notion_client::objects::page::Page;
 use tracing::info;
 
 use qdrant_client::qdrant::{
@@ -25,11 +27,12 @@ use tokio_stream::StreamExt as _;
 use tracing::error;
 
 use crate::{
+    auth::Claims,
     response::{ApiResponse, IntoApiResponse},
     ApiState,
 };
 
-use self::{request::SearchParam, response::SearchResponse};
+use self::{request::SearchParam, response::SearchResp};
 
 pub mod request;
 pub mod response;
@@ -46,10 +49,11 @@ pub mod response;
     )
 )]
 pub async fn search_text(
+    Extension(ref claims): Extension<Claims>,
     State(state): State<Arc<ApiState>>,
     Query(params): Query<SearchParam>,
-) -> ApiResponse<Json<SearchResponse>> {
-    let (context, _) = retriever(&state, &params.prompt)
+) -> ApiResponse<Json<SearchResp>> {
+    let (context, page_ids) = retriever(&state, &params.prompt)
         .await
         .into_response("502-012")?;
 
@@ -78,12 +82,25 @@ pub async fn search_text(
         .await
         .into_response("502-014")?;
 
-    Ok(Json(SearchResponse {
+    let session = save_prompt(
+        &state,
+        params.session,
+        claims.user_id.unwrap(),
+        &params.prompt,
+        &response.result.response,
+        page_ids,
+    )
+    .await
+    .into_response("502-019")?;
+
+    Ok(Json(SearchResp {
         answer: response.result.response,
+        session,
     }))
 }
 
 pub async fn search_text_with_sse(
+    Extension(claims): Extension<Claims>,
     State(state): State<Arc<ApiState>>,
     Json(params): Json<SearchParam>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
@@ -161,32 +178,24 @@ pub async fn search_text_with_sse(
                     pin_mut!(response); // needed for iteration
                     while let Ok(Some(data)) = response.next().await.transpose() {
                         for d in data{
-                            let event =  Event::default().json_data(json!({"message":d.response}));
-
-                            match event {
-                                Ok(event) => {
-                                    let result = message_tx.send(event).await;
-                                    if let Err(err) = result {
+                            let result = message_tx.send(d.response).await;
+                                              if let Err(err) = result {
                                         error!(
                                             task = "send message event",
                                             error = err.to_string()
                                         );
                                     }
-                                },
-                                Err(err) => error!(
-                                    task = "event json_data",
-                                    error = err.to_string()
-                                ),
-                            }
+
                         }
                     }
                 });
 
                 // Take pages from page ids
+                let _state = state.clone();
                 tokio::spawn(async move{
                     let mut pages = vec![];
                     for id in &page_ids{
-                        let result = state.repo.page.find_by_id(id).await;
+                        let result = _state.repo.page.find_by_id(id).await;
                         let Ok(page) = result else {
                             error!(
                                 task = "get page by notion client",
@@ -202,33 +211,70 @@ pub async fn search_text_with_sse(
                         pages.push(page.contents);
                     }
 
-                    let event = Event::default().json_data(json!({"pages":pages}));
-                    match event {
-                        Ok(event) => {
-                            let result = page_tx.send(event).await;
-                            if let Err(err) = result {
-                                error!(
-                                    task = "send message event",
-                                    error = err.to_string()
-                                );
-                            }
-                        },
-                        Err(err) => error!(
-                            task = "event json_data",
+                    let result = page_tx.send(pages).await;
+                    if let Err(err) = result {
+                        error!(
+                            task = "send message event",
                             error = err.to_string()
-                        ),
-                    };
+                        );
+                    }
                 });
 
+                let mut all_messages = String::new();
+                let mut page_ids = vec![];
         loop {
             select! {
-                Some(event) = message_rx.recv() => {
+                Some(message) = message_rx.recv() => {
+                    let event =  Event::default().json_data(json!({"message":message}));
+                     let Ok(event) = event else {
+                        error!(
+                            task = "event json_data",
+                            error = event.unwrap_err().to_string()
+                        );
+                        continue;
+                    };
+
+                    all_messages.push_str(&message);
                     yield event;
                 }
-                Some(event) = page_rx.recv() => {
+                Some(pages) = page_rx.recv() => {
+                    page_ids = pages.clone().iter().map(|s|serde_json::from_str::<Page>(s).unwrap().id).collect();
+                    let event =  Event::default().json_data(json!({"pages":pages}));
+                    let Ok(event) = event else {
+                       error!(
+                           task = "event json_data",
+                           error = event.unwrap_err().to_string()
+                       );
+                       continue;
+                   };
                     yield event;
                 }
                 else => {
+                    let session = save_prompt(
+                        &state,
+                        params.session,
+                        claims.user_id.unwrap(),
+                        &params.prompt,
+                        &all_messages,
+                        page_ids,
+                    ).await;
+                    let Ok(session) = session else {
+                        error!(
+                            task = "save prompt",
+                            error = session.unwrap_err().to_string(),
+                        );
+                        break;
+                    };
+                    let event =  Event::default().json_data(json!({"session":session}));
+                    let Ok(event) = event else {
+                       error!(
+                           task = "event json_data",
+                           error = event.unwrap_err().to_string()
+                       );
+                       break;
+                    };
+
+                    yield event;
                     break;
                 }
             }
@@ -307,4 +353,39 @@ async fn retriever(
     );
 
     Ok((context, page_ids))
+}
+
+async fn save_prompt(
+    state: &Arc<ApiState>,
+    session_id: Option<String>,
+    user_id: i32,
+    prompt: &str,
+    answer: &str,
+    page_ids: Vec<String>,
+) -> anyhow::Result<String> {
+    let prompt_session_id = state
+        .repo
+        .prompt_session
+        .save(PromptSessionEntity {
+            id: session_id.unwrap_or_default(),
+            user_id,
+            ..Default::default()
+        })
+        .await?;
+
+    state
+        .repo
+        .prompt
+        .save(
+            PromptEntity {
+                prompt_session_id: prompt_session_id.clone(),
+                user_prompt: prompt.to_string(),
+                assistant_prompt: answer.to_string(),
+                ..Default::default()
+            },
+            page_ids,
+        )
+        .await?;
+
+    Ok(prompt_session_id)
 }

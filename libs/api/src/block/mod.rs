@@ -8,17 +8,17 @@ mod response;
 
 use crate::response::{ApiResponse, IntoApiResponse};
 
-use self::response::{Block, GetBlockResponse, GetBlocksResponse};
+use self::response::{BlockResp, GetBlockResp, GetBlocksResp};
 
 pub async fn get_blocks(
     State(repo): State<Repository>,
-) -> ApiResponse<Json<GetBlocksResponse>> {
+) -> ApiResponse<Json<GetBlocksResp>> {
     let blocks = repo.block.find_all().await.into_response("502-003")?;
 
-    let response = Json(GetBlocksResponse {
+    let response = Json(GetBlocksResp {
         blocks: blocks
             .into_iter()
-            .map(|a| Block {
+            .map(|a| BlockResp {
                 parent_id: a.notion_page_id,
                 contents: a.contents,
             })
@@ -31,7 +31,7 @@ pub async fn get_blocks(
 pub async fn get_block(
     State(repo): State<Repository>,
     Path(id): Path<String>,
-) -> ApiResponse<Json<GetBlockResponse>> {
+) -> ApiResponse<Json<GetBlockResp>> {
     let block = repo
         .block
         .find_by_notion_page_id(&id)
@@ -39,11 +39,11 @@ pub async fn get_block(
         .into_response("502-004")?;
 
     let Some(block) = block else {
-        return Ok(Json(GetBlockResponse { block: None }));
+        return Ok(Json(GetBlockResp { block: None }));
     };
 
-    Ok(Json(GetBlockResponse {
-        block: Some(Block {
+    Ok(Json(GetBlockResp {
+        block: Some(BlockResp {
             parent_id: block.notion_page_id,
             contents: block.contents,
         }),

@@ -19,3 +19,8 @@ collection = "notion"
 
 [auth0]
 jwks_url = "https://dev-u7c1mp0ly3sefzab.us.auth0.com/.well-known/jwks.json"
+
+[upstash]
+username = "default"
+endpoint = "guided-mollusk-49715.upstash.io"
+port = 6379

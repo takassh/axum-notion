@@ -4,6 +4,7 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use anyhow::Context;
 use aws_sdk_s3::primitives::ByteStream;
+use axum::Extension;
 use axum::{
     extract::{Path, Query, State},
     Json,
@@ -29,6 +30,7 @@ use notion_client::{
 pub mod request;
 pub mod response;
 
+use crate::auth::Claims;
 use crate::response::{ApiResponse, IntoApiResponse};
 use crate::ApiState;
 
@@ -36,7 +38,7 @@ use self::request::GenerateCoverImageParam;
 use self::request::GenerateSummarizeParam;
 use self::{
     request::GetPagesParam,
-    response::{GetPageResponse, GetPagesResponse, ResponsePage},
+    response::{GetPageResp, GetPagesResp, PageResp},
 };
 
 /// List all pages
@@ -53,7 +55,7 @@ use self::{
 pub async fn get_pages(
     State(state): State<Arc<ApiState>>,
     Query(params): Query<GetPagesParam>,
-) -> ApiResponse<Json<GetPagesResponse>> {
+) -> ApiResponse<Json<GetPagesResp>> {
     let pages = state
         .repo
         .page
@@ -66,10 +68,10 @@ pub async fn get_pages(
         .await
         .into_response("502-001")?;
 
-    let response = Json(GetPagesResponse {
+    let response = Json(GetPagesResp {
         pages: pages
             .into_iter()
-            .map(|a| ResponsePage {
+            .map(|a| PageResp {
                 contents: a.contents,
             })
             .collect(),
@@ -92,7 +94,7 @@ pub async fn get_pages(
 pub async fn get_page(
     State(state): State<Arc<ApiState>>,
     Path(id): Path<String>,
-) -> ApiResponse<Json<GetPageResponse>> {
+) -> ApiResponse<Json<GetPageResp>> {
     let page = state
         .repo
         .page
@@ -101,11 +103,11 @@ pub async fn get_page(
         .into_response("502-002")?;
 
     let Some(page) = page else {
-        return Ok(Json(GetPageResponse { page: None }));
+        return Ok(Json(GetPageResp { page: None }));
     };
 
-    Ok(Json(GetPageResponse {
-        page: Some(ResponsePage {
+    Ok(Json(GetPageResp {
+        page: Some(PageResp {
             contents: page.contents,
         }),
     }))
@@ -123,6 +125,7 @@ pub async fn get_page(
     )
 )]
 pub async fn generate_cover_image(
+    Extension(ref _claims): Extension<Claims>,
     State(state): State<Arc<ApiState>>,
     Path(id): Path<String>,
     Json(body): Json<GenerateCoverImageParam>,
@@ -188,6 +191,7 @@ pub async fn generate_cover_image(
     )
 )]
 pub async fn generate_summarize(
+    Extension(ref _claims): Extension<Claims>,
     State(state): State<Arc<ApiState>>,
     Path(id): Path<String>,
     Json(body): Json<GenerateSummarizeParam>,

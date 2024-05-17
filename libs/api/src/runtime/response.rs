@@ -1,6 +1,6 @@
 use serde::Serialize;
 
 #[derive(Serialize)]
-pub struct PostCodeResponse {
+pub struct PostCodeResp {
     pub result: String,
 }

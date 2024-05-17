@@ -2,12 +2,12 @@ use entity::post::Category;
 use serde::Serialize;
 
 #[derive(Serialize)]
-pub struct Post {
+pub struct PostResp {
     pub category: Category,
     pub contents: String,
 }
 
 #[derive(Serialize)]
-pub struct GetPostsResponse {
-    pub posts: Vec<Post>,
+pub struct GetPostsResp {
+    pub posts: Vec<PostResp>,
 }

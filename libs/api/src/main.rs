@@ -15,7 +15,6 @@ async fn main() -> anyhow::Result<()> {
     let secrets = load_env()?;
     let conn_string =
         secrets.get("LOCAL_DATABASE_URL").unwrap().as_str().unwrap();
-    let repository = Repository::new(conn_string).await?;
 
     let notion_token = secrets.get("NOTION_TOKEN").unwrap().as_str().unwrap();
     let notion_client =
@@ -41,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
         .await;
     let s3 = aws_sdk_s3::Client::new(&cfg);
 
-    let accept_user = secrets.get("ACCEPT_USER").unwrap().as_str().unwrap();
+    let admin_user = secrets.get("ADMIN_USER").unwrap().as_str().unwrap();
 
     let config_name = &format!(
         "Config{}",
@@ -76,6 +75,35 @@ async fn main() -> anyhow::Result<()> {
     .build()
     .unwrap();
 
+    let repository = Repository::new(conn_string).await?.with_session(
+        redis::Client::open(format!(
+            "rediss://{}:{}@{}:{}",
+            config
+                .get("upstash")
+                .unwrap()
+                .get("username")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            secrets.get("REDIS_PASSWORD").unwrap().as_str().unwrap(),
+            config
+                .get("upstash")
+                .unwrap()
+                .get("endpoint")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            config
+                .get("upstash")
+                .unwrap()
+                .get("port")
+                .unwrap()
+                .as_integer()
+                .unwrap(),
+        ))
+        .unwrap(),
+    );
+
     let router = serve(
         repository,
         notion_client,
@@ -84,7 +112,7 @@ async fn main() -> anyhow::Result<()> {
         s3,
         bucket.to_string(),
         config_name,
-        accept_user.to_string(),
+        admin_user.to_string(),
     )
     .await?;
 

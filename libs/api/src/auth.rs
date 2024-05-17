@@ -1,15 +1,20 @@
-use std::collections::HashMap;
+use std::sync::Arc;
 
+use anyhow::anyhow;
 use anyhow::Context;
 use axum::{
-    extract::Request,
-    http::{self},
+    extract::{Request, State},
+    http,
     middleware::Next,
     response::Response,
 };
+use entity::user::User;
+use serde::{Deserialize, Serialize};
 use tokio::sync::OnceCell;
 
-use crate::{ApiError, ACCEPT_USER, JWKS_URL};
+use crate::{
+    response::IntoApiResponse, ApiError, ApiState, ADMIN_USER, JWKS_URL,
+};
 
 use jsonwebtoken::{
     decode, decode_header,
@@ -17,7 +22,109 @@ use jsonwebtoken::{
     DecodingKey, Validation,
 };
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Claims {
+    pub sub: String,
+    pub user_id: Option<i32>,
+}
+
 static JWKS: OnceCell<JwkSet> = OnceCell::const_new();
+
+pub async fn set_user_id(
+    State(state): State<Arc<ApiState>>,
+    mut req: Request,
+    next: Next,
+) -> Result<Response, ApiError> {
+    let mut claims = req.extensions().get::<Claims>().unwrap().clone();
+    let user = state
+        .repo
+        .user
+        .find_by_sub(&claims.sub)
+        .await
+        .into_response("501-013")?;
+
+    let Some(user) = user else {
+        let id = state
+            .repo
+            .user
+            .save(User {
+                sub: claims.sub.clone(),
+                ..Default::default()
+            })
+            .await
+            .into_response("502-013")?;
+
+        let user = state.repo.user.find_by_id(id).await;
+
+        let Ok(Some(user)) = user else {
+            return Err(anyhow!("failed to get user. id: {}", id))
+                .into_response("502-013");
+        };
+
+        claims.user_id = Some(user.id);
+        req.extensions_mut().insert(claims);
+        return Ok(next.run(req).await);
+    };
+
+    claims.user_id = Some(user.id);
+    req.extensions_mut().insert(claims);
+    Ok(next.run(req).await)
+}
+
+pub async fn rate_limit(
+    State(state): State<Arc<ApiState>>,
+    req: Request,
+    next: Next,
+) -> Result<Response, ApiError> {
+    let claims = req.extensions().get::<Claims>().unwrap();
+    if ADMIN_USER.get().unwrap() == claims.sub.as_str() {
+        return Ok(next.run(req).await);
+    }
+    let count = state.repo.session.as_ref().unwrap().increment(&claims.sub);
+    let Ok(count) = count else {
+        return Err(ApiError::ServerError("internal error".to_string()));
+    };
+    if count > 10 {
+        return Err(ApiError::AuthError("reached rate limit".to_string()));
+    }
+
+    Ok(next.run(req).await)
+}
+
+pub async fn user_auth(
+    mut req: Request,
+    next: Next,
+) -> Result<Response, ApiError> {
+    let Ok(token) = get_authorization_header(&req) else {
+        return Err(ApiError::AuthError("failed to authorization".to_string()));
+    };
+
+    let Ok(claims) = validate_token(&token).await else {
+        return Err(ApiError::AuthError("invalid token".to_string()));
+    };
+
+    req.extensions_mut().insert(claims);
+    Ok(next.run(req).await)
+}
+
+pub async fn admin_auth(
+    mut req: Request,
+    next: Next,
+) -> Result<Response, ApiError> {
+    let Ok(token) = get_authorization_header(&req) else {
+        return Err(ApiError::AuthError("failed to authorization".to_string()));
+    };
+
+    let Ok(claims) = validate_token(&token).await else {
+        return Err(ApiError::AuthError("invalid token".to_string()));
+    };
+    if ADMIN_USER.get().unwrap() == claims.sub.as_str() {
+        req.extensions_mut().insert(claims);
+        return Ok(next.run(req).await);
+    }
+
+    Err(ApiError::AuthError("you don't have access".to_string()))
+}
 
 async fn get_jwks() -> anyhow::Result<JwkSet> {
     let jwks_url = JWKS_URL.get().context("failed to authorization")?;
@@ -40,35 +147,21 @@ fn get_authorization_header(req: &Request) -> anyhow::Result<String> {
         .to_string())
 }
 
-pub async fn auth(req: Request, next: Next) -> Result<Response, ApiError> {
-    let auth_error =
-        Err(ApiError::AuthError("failed to authorization".to_string()));
-
+async fn validate_token(token: &str) -> anyhow::Result<Claims> {
     let jwks = match JWKS.get() {
         Some(jwks) => jwks.clone(),
         None => {
-            let Ok(jwks) = get_jwks().await else {
-                return auth_error;
-            };
+            let jwks = get_jwks().await?;
             JWKS.set(jwks.clone()).unwrap();
             jwks
         }
     };
 
-    let Ok(token) = get_authorization_header(&req) else {
-        return auth_error;
-    };
-    let Ok(header) = decode_header(&token) else {
-        return auth_error;
-    };
+    let header = decode_header(token)?;
 
-    let Some(kid) = header.kid else {
-        return auth_error;
-    };
+    let kid = header.kid.context("faild to find kid")?;
 
-    let Some(jwk) = jwks.find(&kid) else {
-        return auth_error;
-    };
+    let jwk = jwks.find(&kid).context("faild to find jwk")?;
 
     let decoding_key = match &jwk.algorithm {
         AlgorithmParameters::RSA(rsa) => {
@@ -84,20 +177,7 @@ pub async fn auth(req: Request, next: Next) -> Result<Response, ApiError> {
         validation
     };
 
-    let result = decode::<HashMap<String, serde_json::Value>>(
-        &token,
-        &decoding_key,
-        &validation,
-    );
-    let Ok(decoded_token) = result else {
-        return auth_error;
-    };
+    let decoded_token = decode::<Claims>(token, &decoding_key, &validation)?;
 
-    if ACCEPT_USER.get().unwrap()
-        == decoded_token.claims["sub"].as_str().unwrap()
-    {
-        return Ok(next.run(req).await);
-    }
-
-    auth_error
+    Ok(decoded_token.claims)
 }

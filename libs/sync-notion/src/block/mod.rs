@@ -323,7 +323,7 @@ async fn store_vectors(
 
             texts.push_str(&format!(" {}", text.as_str()));
 
-            if texts.len() > 600 {
+            if texts.len() > 1000 {
                 break;
             }
         }

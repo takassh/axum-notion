@@ -7,11 +7,11 @@ pub mod response;
 
 use crate::response::{ApiResponse, IntoApiResponse};
 
-use self::{request::PostCodeRequest, response::PostCodeResponse};
+use self::{request::PostCodeRequest, response::PostCodeResp};
 
 pub async fn post_code(
     Json(payload): Json<PostCodeRequest>,
-) -> ApiResponse<Json<PostCodeResponse>> {
+) -> ApiResponse<Json<PostCodeResp>> {
     let dir = tempdir()
         .context("failed to create tmp dir")
         .into_response("502-008")?;
@@ -64,5 +64,5 @@ pub async fn post_code(
         .context("failed to close dir")
         .into_response("502-008")?;
 
-    Ok(PostCodeResponse { result }.into())
+    Ok(PostCodeResp { result }.into())
 }

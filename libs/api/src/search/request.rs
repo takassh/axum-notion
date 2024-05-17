@@ -6,4 +6,5 @@ use utoipa::{IntoParams, ToSchema};
 pub struct SearchParam {
     pub prompt: String,
     pub history: Vec<Message>,
+    pub session: Option<String>,
 }

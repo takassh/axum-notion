@@ -1,17 +1,17 @@
 use serde::Serialize;
 
 #[derive(Serialize)]
-pub struct Block {
+pub struct BlockResp {
     pub parent_id: String,
     pub contents: String,
 }
 
 #[derive(Serialize)]
-pub struct GetBlocksResponse {
-    pub blocks: Vec<Block>,
+pub struct GetBlocksResp {
+    pub blocks: Vec<BlockResp>,
 }
 
 #[derive(Serialize)]
-pub struct GetBlockResponse {
-    pub block: Option<Block>,
+pub struct GetBlockResp {
+    pub block: Option<BlockResp>,
 }

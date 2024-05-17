@@ -32,13 +32,43 @@ async fn main(
     let aws_url = secret_store.get("AWS_URL").unwrap();
     let bucket = secret_store.get("BUCKET").unwrap();
 
-    let accept_user = secret_store.get("ACCEPT_USER").unwrap();
+    let admin_user = secret_store.get("ADMIN_USER").unwrap();
 
     let config_name =
         &format!("Config{}", secret_store.get("CONFIG").unwrap().as_str());
     let config = util::load_config(config_name)?;
 
-    let repository = Repository::new(&conn_string).await?.with_cache(persist);
+    let repository = Repository::new(&conn_string)
+        .await?
+        .with_session(
+            redis::Client::open(format!(
+                "rediss://{}:{}@{}:{}",
+                config
+                    .get("upstash")
+                    .unwrap()
+                    .get("username")
+                    .unwrap()
+                    .as_str()
+                    .unwrap(),
+                secret_store.get("REDIS_PASSWORD").unwrap(),
+                config
+                    .get("upstash")
+                    .unwrap()
+                    .get("endpoint")
+                    .unwrap()
+                    .as_str()
+                    .unwrap(),
+                config
+                    .get("upstash")
+                    .unwrap()
+                    .get("port")
+                    .unwrap()
+                    .as_integer()
+                    .unwrap(),
+            ))
+            .unwrap(),
+        )
+        .with_cache(persist);
 
     let notion_client =
         notion_client::endpoints::Client::new(notion_token.clone())
@@ -103,7 +133,7 @@ async fn main(
             s3,
             bucket,
             config_name,
-            accept_user,
+            admin_user,
         )
     );
 

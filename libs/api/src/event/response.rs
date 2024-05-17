@@ -1,16 +1,16 @@
 use serde::Serialize;
 
 #[derive(Serialize)]
-pub struct Event {
+pub struct EventResp {
     pub contents: String,
 }
 
 #[derive(Serialize)]
-pub struct GetEventsResponse {
-    pub events: Vec<Event>,
+pub struct GetEventsResp {
+    pub events: Vec<EventResp>,
 }
 
 #[derive(Serialize)]
-pub struct GetEventResponse {
-    pub event: Option<Event>,
+pub struct GetEventResp {
+    pub event: Option<EventResp>,
 }

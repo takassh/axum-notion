@@ -7,10 +7,14 @@ use migration::MigratorTrait;
 use notion_database::NotionDatabaseRepository;
 use page::PageRepository;
 use post::PostRepository;
+use prompt::PromptRepository;
+use prompt_session::PromptSessionRepository;
 use sea_orm::{ConnectOptions, Database};
+use session::SessionRepository;
 use shuttle_persist::PersistInstance;
 use static_page::StaticPageRepository;
 use top::TopRepository;
+use user::UserRepository;
 
 mod active_models;
 pub mod block;
@@ -18,8 +22,12 @@ pub mod event;
 pub mod notion_database;
 pub mod page;
 pub mod post;
+pub mod prompt;
+pub mod prompt_session;
+pub mod session;
 pub mod static_page;
 pub mod top;
+pub mod user;
 
 #[derive(Clone, Debug)]
 pub struct Repository {
@@ -27,9 +35,13 @@ pub struct Repository {
     pub page: PageRepository,
     pub block: BlockRepository,
     pub event: EventRepository,
+    pub user: UserRepository,
+    pub prompt_session: PromptSessionRepository,
+    pub prompt: PromptRepository,
     pub notion_database_id: NotionDatabaseRepository,
     pub static_page: StaticPageRepository,
     pub top: Option<TopRepository>,
+    pub session: Option<SessionRepository>,
 }
 
 impl Repository {
@@ -52,13 +64,24 @@ impl Repository {
             block: BlockRepository::new(db.clone()),
             event: EventRepository::new(db.clone()),
             notion_database_id: NotionDatabaseRepository::new(db.clone()),
+            user: UserRepository::new(db.clone()),
+            prompt_session: PromptSessionRepository::new(db.clone()),
+            prompt: PromptRepository::new(db.clone()),
             top: None,
+            session: None,
         })
     }
 
     pub fn with_cache(self, cache: PersistInstance) -> Self {
         Self {
             top: Some(TopRepository::new(cache)),
+            ..self
+        }
+    }
+
+    pub fn with_session(self, redis: redis::Client) -> Self {
+        Self {
+            session: Some(SessionRepository::new(redis)),
             ..self
         }
     }

@@ -2,6 +2,7 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 #[derive(Serialize, ToSchema)]
-pub struct SearchResponse {
+pub struct SearchResp {
     pub answer: String,
+    pub session: String,
 }

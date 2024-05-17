@@ -29,6 +29,7 @@ mod response;
 pub mod runtime;
 pub mod search;
 pub mod top;
+pub mod user;
 
 pub enum ApiError {
     AuthError(String),
@@ -59,7 +60,7 @@ pub struct Qdrant {
     pub collection: String,
 }
 
-static ACCEPT_USER: OnceCell<String> = OnceCell::const_new();
+static ADMIN_USER: OnceCell<String> = OnceCell::const_new();
 static JWKS_URL: OnceCell<String> = OnceCell::const_new();
 
 #[allow(clippy::too_many_arguments)]
@@ -71,7 +72,7 @@ pub async fn serve(
     s3: aws_sdk_s3::Client,
     bucket: String,
     config_name: &str,
-    accept_user: String,
+    admin_user: String,
 ) -> anyhow::Result<Router> {
     #[utoipauto(paths = "./libs/api/src")]
     #[derive(OpenApi)]
@@ -86,7 +87,7 @@ pub async fn serve(
 
     let config = load_config(config_name)?;
 
-    ACCEPT_USER.set(accept_user).unwrap();
+    ADMIN_USER.set(admin_user).unwrap();
     JWKS_URL
         .set(config["auth0"]["jwks_url"].as_str().unwrap().to_string())
         .unwrap();
@@ -111,6 +112,12 @@ pub async fn serve(
         },
     });
 
+    // user
+    let user_router = Router::new()
+        .route("/", get(user::get_user))
+        .route_layer(middleware::from_fn(auth::user_auth))
+        .with_state(state.clone());
+
     // pages
     let page_router = Router::new()
         .route(
@@ -118,30 +125,26 @@ pub async fn serve(
             post(page::generate_cover_image),
         )
         .route("/:id/generate-summary", post(page::generate_summarize))
-        .route_layer(middleware::from_fn(auth::auth))
+        .route_layer(middleware::from_fn(auth::admin_auth))
         .route("/", get(page::get_pages))
         .route("/:id", get(page::get_page))
-        .fallback(not_found::get_404)
         .with_state(state.clone());
 
     // blocks
     let block_router = Router::new()
         .route("/", get(block::get_blocks))
         .route("/:id", get(block::get_block))
-        .fallback(not_found::get_404)
         .with_state(repository.clone());
 
     // events
     let event_router = Router::new()
         .route("/", get(event::get_events))
         .route("/:id", get(event::get_event))
-        .fallback(not_found::get_404)
         .with_state(repository.clone());
 
     // posts
     let post_router = Router::new()
         .route("/", get(post::get_posts))
-        .fallback(not_found::get_404)
         .with_state(repository.clone());
 
     // top
@@ -154,8 +157,15 @@ pub async fn serve(
     let search_router = Router::new()
         .route("/", get(search::search_text))
         .route("/sse", post(search::search_text_with_sse))
-        .route_layer(middleware::from_fn(auth::auth))
-        .fallback(not_found::get_404)
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth::set_user_id,
+        ))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth::rate_limit,
+        ))
+        .route_layer(middleware::from_fn(auth::user_auth))
         .with_state(state.clone());
 
     // runtime
@@ -169,6 +179,7 @@ pub async fn serve(
         .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
         .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
         .route("/healthz", get(healthz::get_health))
+        .nest("/user", user_router)
         .nest("/pages", page_router)
         .nest("/blocks", block_router)
         .nest("/events", event_router)

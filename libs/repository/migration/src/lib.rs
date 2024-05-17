@@ -10,6 +10,10 @@ mod m20240512_100556_create_static_page_table;
 mod m20240512_104914_rename_to_notion_parent_id_table;
 mod m20240512_110241_add_parent_type_column;
 mod m20240512_123038_remove_contents_column;
+mod m20240517_085139_create_user_table;
+mod m20240517_085140_create_prompt_session_table;
+mod m20240517_085142_create_prompt_table;
+mod m20240517_162442_create_prompt_page_table;
 
 pub struct Migrator;
 
@@ -29,6 +33,10 @@ impl MigratorTrait for Migrator {
             ),
             Box::new(m20240512_110241_add_parent_type_column::Migration),
             Box::new(m20240512_123038_remove_contents_column::Migration),
+            Box::new(m20240517_085139_create_user_table::Migration),
+            Box::new(m20240517_085140_create_prompt_session_table::Migration),
+            Box::new(m20240517_085142_create_prompt_table::Migration),
+            Box::new(m20240517_162442_create_prompt_page_table::Migration),
         ]
     }
 }

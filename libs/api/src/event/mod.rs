@@ -11,23 +11,23 @@ use crate::response::{ApiResponse, IntoApiResponse};
 
 use self::{
     request::GetEventsParam,
-    response::{Event, GetEventResponse, GetEventsResponse},
+    response::{EventResp, GetEventResp, GetEventsResp},
 };
 
 pub async fn get_events(
     State(repo): State<Repository>,
     Query(params): Query<GetEventsParam>,
-) -> ApiResponse<Json<GetEventsResponse>> {
+) -> ApiResponse<Json<GetEventsResp>> {
     let events = repo
         .event
         .find_paginate(params.pagination.page, params.pagination.limit)
         .await
         .into_response("502-005")?;
 
-    let response = Json(GetEventsResponse {
+    let response = Json(GetEventsResp {
         events: events
             .into_iter()
-            .map(|a| Event {
+            .map(|a| EventResp {
                 contents: a.contents,
             })
             .collect(),
@@ -39,7 +39,7 @@ pub async fn get_events(
 pub async fn get_event(
     State(repo): State<Repository>,
     Path(id): Path<String>,
-) -> ApiResponse<Json<GetEventResponse>> {
+) -> ApiResponse<Json<GetEventResp>> {
     let event = repo
         .event
         .find_by_event_id(id)
@@ -47,11 +47,11 @@ pub async fn get_event(
         .into_response("502-006")?;
 
     let Some(event) = event else {
-        return Ok(Json(GetEventResponse { event: None }));
+        return Ok(Json(GetEventResp { event: None }));
     };
 
-    Ok(Json(GetEventResponse {
-        event: Some(Event {
+    Ok(Json(GetEventResp {
+        event: Some(EventResp {
             contents: event.contents,
         }),
     }))
