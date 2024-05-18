@@ -159,9 +159,9 @@ async fn validate_token(token: &str) -> anyhow::Result<Claims> {
 
     let header = decode_header(token)?;
 
-    let kid = header.kid.context("faild to find kid")?;
+    let kid = header.kid.context("failed to find kid")?;
 
-    let jwk = jwks.find(&kid).context("faild to find jwk")?;
+    let jwk = jwks.find(&kid).context("failed to find jwk")?;
 
     let decoding_key = match &jwk.algorithm {
         AlgorithmParameters::RSA(rsa) => {
