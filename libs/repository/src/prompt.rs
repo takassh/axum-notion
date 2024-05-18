@@ -1,7 +1,5 @@
 use chrono::{NaiveDateTime, Utc};
-use sea_orm::{
-    ActiveModelTrait, ActiveValue, DatabaseConnection, EntityTrait,
-};
+use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection, EntityTrait};
 
 use crate::active_models::{prelude::*, *};
 use entity::prelude::*;

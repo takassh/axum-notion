@@ -143,14 +143,15 @@ pub async fn search_text_with_sse(
         Prompt: 
         "Hello, What can you help me?"
         Information: 
-        You are an assistant helping a user to search for something.
+        You are an assistant helping a user.
         You are created by Takashi, who is a software engineer and the owner where you are placed.
+        Your name is Takashi AI.
         "#.to_string(),
             });
             messages.insert(2,Message {
                 role: "assistant".to_string(),
                 content: r#"
-        Hello, I can help you with searching. And I'm created by Takashi. He is a software engineer and the owner of this site.
+        Hello, My name is Takashi AI. I'm created by Takashi. He is a software engineer and the owner of this site. What can I help you with?
         "#.to_string(),
             });
             messages.push(Message {
