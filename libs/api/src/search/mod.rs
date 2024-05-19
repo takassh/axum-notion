@@ -125,9 +125,9 @@ pub async fn search_text_with_sse(
             let system_prompt = format!(r#"
         You are an assistant helping a user who gives you a prompt.
         You are placed on my blog site.
-        Each time the user gives you a prompt, you get external information relating to the prompt and current date formatted rfc3339.
+        Each time the user gives you a prompt, you get external information relating to the prompt and current date.
         If you aren't familiar with the prompt, you should answer you don't know.
-        Here are title and edited time formatted rfc3339 of all articles in the site:
+        Here are title and created time of all articles in the site:
         {}
         "#,title_and_dates.iter().map(|(title,date)|format!("{},{}",title,date)).collect::<Vec<_>>().join("\n"));
 
@@ -142,7 +142,7 @@ pub async fn search_text_with_sse(
         "#,
                 params.prompt,
                 context.join("\n"),
-                chrono::Utc::now().to_rfc3339()
+                chrono::Utc::now().format("%d/%m/%Y %H:%M").to_string()
             );
 
             let mut messages = params.history;
@@ -421,7 +421,8 @@ async fn get_page_title_and_dates(
                         .flat_map(|t| t.plain_text())
                         .collect::<Vec<_>>()
                         .join("");
-                    let date = page.last_edited_time.to_rfc3339();
+                    let date =
+                        page.created_time.format("%d/%m/%Y %H:%M").to_string();
 
                     (title, date)
                 } else {
