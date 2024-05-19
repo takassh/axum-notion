@@ -84,7 +84,7 @@ pub async fn rate_limit(
     let Ok(count) = count else {
         return Err(ApiError::ServerError("internal error".to_string()));
     };
-    if count > 10 {
+    if count > 50 {
         return Err(ApiError::AuthError("reached rate limit".to_string()));
     }
 
