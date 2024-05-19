@@ -13,7 +13,7 @@ use cloudflare::models::{
 };
 use entity::prelude::*;
 use futures_util::{pin_mut, Stream};
-use notion_client::objects::page::Page;
+use notion_client::objects::page::{Page, PageProperty};
 use tracing::info;
 
 use qdrant_client::qdrant::{
@@ -105,6 +105,14 @@ pub async fn search_text_with_sse(
     Json(params): Json<SearchParam>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let stream = stream! {
+        let title_and_dates = get_page_title_and_dates(&state).await;
+        let Ok(title_and_dates) = title_and_dates else {
+            error!(
+                task = "get page title and dates",
+                error = title_and_dates.unwrap_err().to_string(),
+            );
+            return;
+        };
             let result = retriever(&state, &params.prompt).await;
             let Ok((context,page_ids)) = result else {
                 error!(
@@ -114,12 +122,14 @@ pub async fn search_text_with_sse(
                 return;
             };
 
-            let system_prompt = r#"
+            let system_prompt = format!(r#"
         You are an assistant helping a user who gives you a prompt.
         You are placed on my blog site.
-        Each time the user gives you a prompt, you get external information and relating to the prompt.
+        Each time the user gives you a prompt, you get external information relating to the prompt and current date formatted rfc3339.
         If you aren't familiar with the prompt, you should answer you don't know.
-        "#.to_string();
+        Here are title and edited time formatted rfc3339 of all articles in the site:
+        {}
+        "#,title_and_dates.iter().map(|(title,date)|format!("{},{}",title,date)).collect::<Vec<_>>().join("\n"));
 
             let user_prompt = format!(
                 r#"
@@ -127,9 +137,12 @@ pub async fn search_text_with_sse(
         "{}"
         Information: 
         "{}"
+        Current Date:
+        "{}"
         "#,
                 params.prompt,
-                context.join("\n")
+                context.join("\n"),
+                chrono::Utc::now().to_rfc3339()
             );
 
             let mut messages = params.history;
@@ -389,4 +402,33 @@ async fn save_prompt(
         .await?;
 
     Ok(prompt_session_id)
+}
+
+async fn get_page_title_and_dates(
+    state: &Arc<ApiState>,
+) -> anyhow::Result<Vec<(String, String)>> {
+    let pages = state.repo.page.find_all().await?;
+    Ok(pages
+        .iter()
+        .flat_map(|page| {
+            let page = serde_json::from_str::<Page>(&page.contents)?;
+            let title_and_date =
+                if let Some(PageProperty::Title { id: _, title }) =
+                    page.properties.get("title")
+                {
+                    let title = title
+                        .iter()
+                        .flat_map(|t| t.plain_text())
+                        .collect::<Vec<_>>()
+                        .join("");
+                    let date = page.last_edited_time.to_rfc3339();
+
+                    (title, date)
+                } else {
+                    return Err(anyhow::anyhow!("No title found"));
+                };
+
+            Ok(title_and_date)
+        })
+        .collect())
 }

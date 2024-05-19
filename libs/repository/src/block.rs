@@ -1,7 +1,7 @@
 use chrono::Utc;
 use sea_orm::{
-    sea_query, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveValue,
-    Iterable,
+    sea_query, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait,
+    IntoActiveValue, Iterable,
 };
 
 use sea_orm::QueryFilter;
@@ -76,6 +76,17 @@ impl BlockRepository {
             )
             .exec(&self.db)
             .await?;
+
+        Ok(())
+    }
+
+    pub async fn delete_by_page_id(&self, page_id: &str) -> anyhow::Result<()> {
+        block::Entity::delete(block::ActiveModel {
+            notion_page_id: ActiveValue::Set(page_id.to_string()),
+            ..Default::default()
+        })
+        .exec(&self.db)
+        .await?;
 
         Ok(())
     }

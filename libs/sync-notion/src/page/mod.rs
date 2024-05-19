@@ -258,7 +258,12 @@ fn receiver(
                 }
                 Some(Message::Delete { page_ids }) => {
                     for page_id in page_ids {
-                        let (delete_result, vector_result) = join!(
+                        let (
+                            delete_block_result,
+                            delete_page_result,
+                            vector_result,
+                        ) = join!(
+                            state.repository.block.delete_by_page_id(&page_id),
                             state.repository.page.delete(&page_id),
                             delete_vectors(
                                 &state.qdrant,
@@ -267,7 +272,15 @@ fn receiver(
                             )
                         );
 
-                        if let Err(e) = delete_result {
+                        if let Err(e) = delete_block_result {
+                            error!(
+                                task = "delete block",
+                                page_id,
+                                error = e.to_string()
+                            );
+                        }
+
+                        if let Err(e) = delete_page_result {
                             error!(
                                 task = "delete page",
                                 page_id,

@@ -81,7 +81,10 @@ impl PageRepository {
     }
 
     pub async fn find_all(&self) -> anyhow::Result<Vec<PageEntity>> {
-        let pages = Page::find().all(&self.db).await?;
+        let pages = Page::find()
+            .order_by_desc(page::Column::CreatedAt)
+            .all(&self.db)
+            .await?;
 
         Ok(pages.into_iter().map(PageEntity::from).collect())
     }
