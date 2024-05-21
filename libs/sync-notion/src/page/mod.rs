@@ -396,13 +396,7 @@ async fn delete_vectors(
                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(page_id.to_string()))}),
                     ..Default::default()
                    }))
-                },Condition{
-                    condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
-                     key:"id".to_string(),
-                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(page_id.to_string()))}),
-                     ..Default::default()
-                    }))
-                 }],
+                }],
                 ..Default::default()
             })),
         },
@@ -426,7 +420,7 @@ async fn store_vectors(
             points_selector_one_of: Some(qdrant_client::qdrant::points_selector::PointsSelectorOneOf::Filter(Filter{
                 must:vec![Condition{
                    condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
-                    key:"id".to_string(),
+                    key:"page_id".to_string(),
                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(page_id.to_string()))}),
                     ..Default::default()
                    }))
@@ -463,8 +457,8 @@ async fn store_vectors(
     };
 
     let mut map = HashMap::new();
-    map.insert("id".to_string(), Value::from(page_id.clone()));
-    map.insert("title".to_string(), Value::from(title.clone()));
+    map.insert("page_id".to_string(), Value::from(page_id.clone()));
+    map.insert("document".to_string(), Value::from(title.clone()));
 
     let points = vec![PointStruct::new(
         PointId::from(page_id),
