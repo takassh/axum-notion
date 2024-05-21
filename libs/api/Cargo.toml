@@ -10,23 +10,23 @@ entity = { path = "../entity" }
 repository = { path = "../repository" }
 util = { path = "../util" }
 cloudflare = { path = "../cloudflare" }
-axum = { version = "0.7.3", features = ["ws"] }
+axum = { version = "0.7.5", features = ["ws"] }
 serde = { version = "1.0.196", features = ["derive"] }
-serde_json = "1.0.113"
+serde_json = "1.0.117"
 tower-http = { version = "0.5.2", features = ["cors"] }
 tracing = "0.1.40"
-anyhow = "1.0.81"
-utoipa = { version = "4.2.0", features = ["axum_extras"] }
+anyhow = "1.0.86"
+utoipa = { version = "4.2.3", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "6.0.0", features = ["axum"] }
 utoipa-redoc = { version = "3.0.0", features = ["axum"] }
 utoipa-rapidoc = { version = "3.0.0", features = ["axum"] }
 tokio = "1.37.0"
-toml = "0.8.12"
+toml = "0.8.13"
 utoipauto = "0.1.10"
 serde_with = { version = "3.7.0", features = ["macros"] }
 futures-util = "0.3.30"
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
-tokio-util = "0.7.10"
+tokio-util = "0.7.11"
 tempfile = "3.10.1"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 reqwest = "0.12.4"
