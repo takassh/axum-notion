@@ -142,7 +142,7 @@ pub async fn search_text_with_sse(
         "#,
                 params.prompt,
                 context.join("\n"),
-                chrono::Utc::now().format("%d/%m/%Y %H:%M").to_string()
+                chrono::Utc::now().format("%d/%m/%Y %H:%M")
             );
 
             let mut messages = params.history;
