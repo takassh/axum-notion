@@ -1,15 +1,32 @@
 use crate::State;
+use anyhow::{anyhow, Context};
+use cloudflare::models::text_embeddings::{
+    TextEmbeddings, TextEmbeddingsRequest,
+};
 use futures::future::join_all;
 use notion_client::{
     endpoints::databases::query::request::{
         QueryDatabaseRequest, Sort, SortDirection, Timestamp,
     },
-    objects::{page::Page, parent::Parent},
+    objects::{
+        page::{Page, PageProperty},
+        parent::Parent,
+    },
 };
 
 use entity::{page::ParentType, post::Category, prelude::*};
-use qdrant_client::qdrant::{Condition, FieldCondition, Filter, Match};
-use std::{collections::HashSet, sync::Arc, time::Duration, vec};
+use qdrant_client::{
+    client::Payload,
+    qdrant::{
+        Condition, FieldCondition, Filter, Match, PointId, PointStruct, Value,
+    },
+};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
+    vec,
+};
 use tokio::{join, task::JoinHandle};
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
@@ -213,10 +230,51 @@ fn receiver(
                             Parent::PageId { ref page_id } => page_id,
                             _ => continue,
                         };
-                        let model = PageEntity {
-                            notion_page_id: page.id.clone(),
+
+                        let stored =
+                            state.repository.page.find_by_id(&page.id).await;
+
+                        let Ok(stored) = stored else {
+                            error!(
+                                task = "find page by id",
+                                model = format!("{:?}", page.id),
+                                error = stored.unwrap_err().to_string()
+                            );
+                            continue;
+                        };
+
+                        let need_update = match stored {
+                            None => true,
+                            Some(stored) => {
+                                let stored_contents =
+                                    serde_json::from_str::<Page>(
+                                        &stored.contents,
+                                    );
+                                let Ok(stored_page) = stored_contents else {
+                                    error!(
+                                        task = "desierialize stored page",
+                                        parent_id,
+                                        error = stored_contents
+                                            .unwrap_err()
+                                            .to_string(),
+                                    );
+                                    continue;
+                                };
+
+                                stored_page.last_edited_time
+                                    != page.last_edited_time
+                            }
+                        };
+
+                        if !need_update {
+                            continue;
+                        }
+
+                        let _page = page.clone();
+                        let page_model = PageEntity {
+                            notion_page_id: _page.id.clone(),
                             notion_parent_id: parent_id.to_string(),
-                            parent_type: match page.parent {
+                            parent_type: match _page.parent {
                                 Parent::DatabaseId { .. } => {
                                     ParentType::Database
                                 }
@@ -224,33 +282,52 @@ fn receiver(
                                 _ => ParentType::Database,
                             },
                             contents: json,
-                            created_at: page.created_time,
+                            created_at: _page.created_time,
                             updated_at: None,
                         };
 
-                        let result =
-                            state.repository.page.save(model.clone()).await;
-                        if let Err(e) = result {
+                        let post_model = PostEntity {
+                            id: _page.id,
+                            contents: None,
+                            category: Category::Page,
+                            created_at: _page.created_time,
+                        };
+
+                        let (
+                            save_page_result,
+                            save_post_result,
+                            store_vector_result,
+                        ) = join!(
+                            state.repository.page.save(page_model.clone()),
+                            state.repository.post.save(post_model.clone()),
+                            store_vectors(
+                                &state.cloudflare,
+                                &state.qdrant,
+                                state.collention.clone(),
+                                page.clone()
+                            ),
+                        );
+
+                        if let Err(e) = save_page_result {
                             error!(
-                                task = "save",
-                                model = format!("{:?}", model),
+                                task = "save page",
+                                model = format!("{:?}", page_model),
                                 error = e.to_string()
                             );
                         }
 
-                        let model = PostEntity {
-                            id: page.id,
-                            contents: None,
-                            category: Category::Page,
-                            created_at: page.created_time,
-                        };
-
-                        let result =
-                            state.repository.post.save(model.clone()).await;
-                        if let Err(e) = result {
+                        if let Err(e) = save_post_result {
                             error!(
-                                task = "save",
-                                model = format!("{:?}", model),
+                                task = "save post",
+                                model = format!("{:?}", post_model),
+                                error = e.to_string()
+                            );
+                        }
+
+                        if let Err(e) = store_vector_result {
+                            error!(
+                                task = "store vector",
+                                model = format!("{:?}", page),
                                 error = e.to_string()
                             );
                         }
@@ -313,9 +390,43 @@ async fn delete_vectors(
         None,
         &qdrant_client::qdrant::PointsSelector {
             points_selector_one_of: Some(qdrant_client::qdrant::points_selector::PointsSelectorOneOf::Filter(Filter{
-                must:vec![Condition{
+                should:vec![Condition{
                    condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
                     key:"page_id".to_string(),
+                    r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(page_id.to_string()))}),
+                    ..Default::default()
+                   }))
+                },Condition{
+                    condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
+                     key:"id".to_string(),
+                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(page_id.to_string()))}),
+                     ..Default::default()
+                    }))
+                 }],
+                ..Default::default()
+            })),
+        },
+        None,
+    ).await?;
+
+    Ok(())
+}
+
+async fn store_vectors(
+    cloudflare: &cloudflare::models::Models,
+    qdrant: &qdrant_client::client::QdrantClient,
+    collection: String,
+    page: Page,
+) -> anyhow::Result<()> {
+    let page_id = page.id;
+    qdrant.delete_points(
+        collection.clone(),
+        None,
+        &qdrant_client::qdrant::PointsSelector {
+            points_selector_one_of: Some(qdrant_client::qdrant::points_selector::PointsSelectorOneOf::Filter(Filter{
+                must:vec![Condition{
+                   condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
+                    key:"id".to_string(),
                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(page_id.to_string()))}),
                     ..Default::default()
                    }))
@@ -324,7 +435,47 @@ async fn delete_vectors(
             })),
         },
         None,
-    ).await?;
+    ).await.context("failed to delete")?;
+
+    let title = page
+        .properties
+        .get("title")
+        .context("failed to get title")?;
+    let PageProperty::Title { id: _, title } = title else {
+        return Err(anyhow!("failed to get title"));
+    };
+
+    let title = title
+        .iter()
+        .flat_map(|t| t.plain_text())
+        .collect::<Vec<_>>()
+        .join("");
+
+    let embedding = cloudflare
+        .bge_small_en_v1_5(TextEmbeddingsRequest {
+            text: title.as_str().into(),
+        })
+        .await
+        .context(format!("failed to embed. {}", title))?;
+
+    let Some(vectors) = embedding.result.data.first() else {
+        return Err(anyhow!("failed to get vectors. {}", title));
+    };
+
+    let mut map = HashMap::new();
+    map.insert("id".to_string(), Value::from(page_id.clone()));
+    map.insert("title".to_string(), Value::from(title.clone()));
+
+    let points = vec![PointStruct::new(
+        PointId::from(page_id),
+        vectors.clone(),
+        Payload::new_from_hashmap(map),
+    )];
+
+    qdrant
+        .upsert_points(collection.clone(), None, points, None)
+        .await
+        .context(format!("failed to upsert. {}", title))?;
 
     Ok(())
 }
