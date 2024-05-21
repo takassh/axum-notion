@@ -413,23 +413,6 @@ async fn store_vectors(
     page: Page,
 ) -> anyhow::Result<()> {
     let page_id = page.id;
-    qdrant.delete_points(
-        collection.clone(),
-        None,
-        &qdrant_client::qdrant::PointsSelector {
-            points_selector_one_of: Some(qdrant_client::qdrant::points_selector::PointsSelectorOneOf::Filter(Filter{
-                must:vec![Condition{
-                   condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
-                    key:"page_id".to_string(),
-                    r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(page_id.to_string()))}),
-                    ..Default::default()
-                   }))
-                }],
-                ..Default::default()
-            })),
-        },
-        None,
-    ).await.context("failed to delete")?;
 
     let title = page
         .properties
