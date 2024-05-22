@@ -396,7 +396,7 @@ async fn delete_vectors(
                 },Condition{
                     condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
                      key:"type".to_string(),
-                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(serde_json::to_string(&DocumentType::Block).unwrap()))}),
+                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(serde_json::to_string(&DocumentType::Page).unwrap()))}),
                      ..Default::default()
                     }))
                  }],
