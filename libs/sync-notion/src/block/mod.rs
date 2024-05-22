@@ -1,4 +1,4 @@
-use crate::State;
+use crate::{DocumentType, State};
 use anyhow::Context;
 use async_recursion::async_recursion;
 use cloudflare::models::text_embeddings::{
@@ -299,7 +299,13 @@ async fn store_vectors(
                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(page_id.to_string()))}),
                     ..Default::default()
                    }))
-                }],
+                },Condition{
+                    condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
+                     key:"type".to_string(),
+                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(serde_json::to_string(&DocumentType::Block).unwrap()))}),
+                     ..Default::default()
+                    }))
+                 }],
                 ..Default::default()
             })),
         },
@@ -342,6 +348,10 @@ async fn store_vectors(
         let mut map = HashMap::new();
         map.insert("page_id".to_string(), Value::from(page_id));
         map.insert("document".to_string(), Value::from(texts.clone()));
+        map.insert(
+            "type".to_string(),
+            Value::from(serde_json::to_string(&DocumentType::Block).unwrap()),
+        );
 
         let points = vec![PointStruct::new(
             Uuid::new_v4().hyphenated().to_string(),

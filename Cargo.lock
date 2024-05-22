@@ -4832,6 +4832,7 @@ dependencies = [
  "notion-client",
  "qdrant-client",
  "repository",
+ "serde",
  "serde_json",
  "tokio",
  "toml",

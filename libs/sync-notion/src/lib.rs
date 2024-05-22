@@ -6,11 +6,18 @@ use qdrant_client::qdrant::{
     vectors_config::Config, CreateCollection, VectorParams, VectorsConfig,
 };
 use repository::Repository;
+use serde::Serialize;
 use tokio::task::JoinHandle;
 use tracing::info;
 
 mod block;
 mod page;
+
+#[derive(Serialize, Debug, Clone)]
+pub enum DocumentType {
+    Page,
+    Block,
+}
 
 pub struct State {
     repository: Repository,

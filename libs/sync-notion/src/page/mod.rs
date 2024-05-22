@@ -1,20 +1,17 @@
-use crate::State;
+use crate::{DocumentType, State};
 use anyhow::{anyhow, Context};
 use cloudflare::models::text_embeddings::{
     TextEmbeddings, TextEmbeddingsRequest,
 };
+use entity::{page::ParentType, post::Category, prelude::*};
 use futures::future::join_all;
+use notion_client::objects::page::Page;
 use notion_client::{
     endpoints::databases::query::request::{
         QueryDatabaseRequest, Sort, SortDirection, Timestamp,
     },
-    objects::{
-        page::{Page, PageProperty},
-        parent::Parent,
-    },
+    objects::{page::PageProperty, parent::Parent},
 };
-
-use entity::{page::ParentType, post::Category, prelude::*};
 use qdrant_client::{
     client::Payload,
     qdrant::{
@@ -390,13 +387,19 @@ async fn delete_vectors(
         None,
         &qdrant_client::qdrant::PointsSelector {
             points_selector_one_of: Some(qdrant_client::qdrant::points_selector::PointsSelectorOneOf::Filter(Filter{
-                should:vec![Condition{
+                must:vec![Condition{
                    condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
                     key:"page_id".to_string(),
                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(page_id.to_string()))}),
                     ..Default::default()
                    }))
-                }],
+                },Condition{
+                    condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
+                     key:"type".to_string(),
+                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(serde_json::to_string(&DocumentType::Block).unwrap()))}),
+                     ..Default::default()
+                    }))
+                 }],
                 ..Default::default()
             })),
         },
@@ -442,6 +445,10 @@ async fn store_vectors(
     let mut map = HashMap::new();
     map.insert("page_id".to_string(), Value::from(page_id.clone()));
     map.insert("document".to_string(), Value::from(title.clone()));
+    map.insert(
+        "type".to_string(),
+        Value::from(serde_json::to_string(&DocumentType::Page).unwrap()),
+    );
 
     let points = vec![PointStruct::new(
         PointId::from(page_id),
