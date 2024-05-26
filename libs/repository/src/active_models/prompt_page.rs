@@ -13,35 +13,6 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::page::Entity",
-        from = "Column::PageId",
-        to = "super::page::Column::NotionPageId",
-        on_update = "NoAction",
-        on_delete = "NoAction"
-    )]
-    Page,
-    #[sea_orm(
-        belongs_to = "super::prompt::Entity",
-        from = "Column::PromptId",
-        to = "super::prompt::Column::Id",
-        on_update = "NoAction",
-        on_delete = "NoAction"
-    )]
-    Prompt,
-}
-
-impl Related<super::page::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Page.def()
-    }
-}
-
-impl Related<super::prompt::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Prompt.def()
-    }
-}
+pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}

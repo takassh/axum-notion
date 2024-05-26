@@ -59,7 +59,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum PromptPage {
+pub enum PromptPage {
     Table,
     Id,
     PromptId,

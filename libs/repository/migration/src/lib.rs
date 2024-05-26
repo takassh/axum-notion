@@ -14,6 +14,10 @@ mod m20240517_085139_create_user_table;
 mod m20240517_085140_create_prompt_session_table;
 mod m20240517_085142_create_prompt_table;
 mod m20240517_162442_create_prompt_page_table;
+mod m20240526_114017_remove_fk_user_id;
+mod m20240526_114430_remove_fk_prompt_session_id;
+mod m20240526_114439_remove_fk_prompt_id;
+mod m20240526_114446_remove_fk_page_id;
 
 pub struct Migrator;
 
@@ -37,6 +41,10 @@ impl MigratorTrait for Migrator {
             Box::new(m20240517_085140_create_prompt_session_table::Migration),
             Box::new(m20240517_085142_create_prompt_table::Migration),
             Box::new(m20240517_162442_create_prompt_page_table::Migration),
+            Box::new(m20240526_114017_remove_fk_user_id::Migration),
+            Box::new(m20240526_114430_remove_fk_prompt_session_id::Migration),
+            Box::new(m20240526_114439_remove_fk_prompt_id::Migration),
+            Box::new(m20240526_114446_remove_fk_page_id::Migration),
         ]
     }
 }

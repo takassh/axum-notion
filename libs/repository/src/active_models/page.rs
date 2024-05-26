@@ -15,15 +15,6 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {
-    #[sea_orm(has_many = "super::prompt_page::Entity")]
-    PromptPage,
-}
-
-impl Related<super::prompt_page::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::PromptPage.def()
-    }
-}
+pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
