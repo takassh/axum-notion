@@ -168,7 +168,8 @@ pub async fn search_text_with_sse(
         ],
         None,
         r#"<tool_call>{"arguments": {"word": "about"}, "name": "find_article_by_word"}</tool_call>"#.to_string(),
-        format!(r#"<tool_response>{{"title": "About", "content": "{}"}}</tool_response>"#,content_in_about)
+        format!(r#"<tool_response>{{"title": "About", "content": "{}"}}</tool_response>"#,content_in_about),
+        params.history.clone(),
     );
 
         let tool_calls = function_call_agent.prompt(&params.prompt).await;

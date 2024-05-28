@@ -22,6 +22,7 @@ pub struct FunctionCallAgent {
     system_prompt: String,
     example_tool_call: String,
     example_tool_response: String,
+    history: Vec<Message>,
 }
 
 impl FunctionCallAgent {
@@ -31,6 +32,7 @@ impl FunctionCallAgent {
         additional_system_prompt: Option<String>,
         example_tool_call: String,
         example_tool_response: String,
+        history: Vec<Message>,
     ) -> Self {
         let system_prompt = format!(
             r#"
@@ -78,14 +80,14 @@ impl FunctionCallAgent {
             system_prompt,
             example_tool_call,
             example_tool_response,
+            history,
         }
     }
 }
 
 impl Agent for FunctionCallAgent {
     async fn prompt(&self, prompt: &str) -> anyhow::Result<Vec<ToolCall>> {
-        let messages = vec![
-            Message {
+        let messages = [Message {
                 role: "system".to_string(),
                 content: self.system_prompt.to_string(),
             },
@@ -100,12 +102,17 @@ impl Agent for FunctionCallAgent {
             Message {
                 role: "tool".to_string(),
                 content: self.example_tool_response.to_string(),
-            },
-            Message {
-                role: "user".to_string(),
-                content: prompt.to_string(),
-            },
-        ];
+            }];
+
+        let mut messages: Vec<_> = messages
+            .iter()
+            .chain(&self.history).cloned()
+            .collect();
+
+        messages.push(Message {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+        });
 
         let response = self.call(messages).await?;
 
