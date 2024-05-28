@@ -148,7 +148,7 @@ impl Agent for FunctionCallAgent {
     }
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Clone, Debug, Deserialize, Default)]
 pub struct ToolCall {
     pub name: String,
     pub arguments: HashMap<String, String>,

@@ -183,7 +183,7 @@ pub async fn search_text_with_sse(
 
 
         let mut resources = vec![];
-        for tool_call in tool_calls{
+        for tool_call in tool_calls.clone(){
             let params = json!(&tool_call.arguments);
             let response = state.rpc.call_route(None,tool_call.name,Some(params)).await;
             let Ok(CallResponse { id: _, method: _, value }) = response else{
@@ -219,6 +219,13 @@ pub async fn search_text_with_sse(
             resources.push(block.iter().flat_map(|b|b.block_type.plain_text()).flatten().collect::<Vec<_>>().join("\n"));
             page_ids.push(notion_page_id);
         }
+
+        info!(
+            task = "tool calls",
+            tool_calls = tool_calls.into_iter().map(|t|format!("function:{},arguments:{:?}",t.name,t.arguments)).collect::<Vec<_>>().join("\n"),
+            page_ids = page_ids.join(","),
+            resources = resources.join("\n"),
+        );
 
             let system_prompt = format!(r#"
         You are an assistant helping a user who gives you a prompt.
@@ -272,11 +279,6 @@ pub async fn search_text_with_sse(
                 role: "user".to_string(),
                 content: user_prompt.to_string(),
             });
-
-            info!(
-                task = "build user prompt",
-                user_prompt = user_prompt
-            );
 
                 let (message_tx, mut message_rx) = mpsc::channel(100);
                 let (page_tx, mut page_rx) = mpsc::channel(1);
