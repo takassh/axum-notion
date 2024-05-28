@@ -194,12 +194,16 @@ pub async fn search_text_with_sse(
                 continue;
             };
 
-            let block = serde_json::from_value::<entity::block::Block>(value);
-            let Ok(entity::block::Block{ notion_page_id, updated_at:_, contents }) = block else{
+            let block = serde_json::from_value::<Option<entity::block::Block>>(value.clone());
+            let Ok(block) = block else{
                 error!(
                     task = "parse block",
+                    value = value.to_string(),
                     error = block.unwrap_err().to_string(),
                 );
+                continue;
+            };
+            let Some(entity::block::Block{ notion_page_id, updated_at:_, contents }) = block else{
                 continue;
             };
 
@@ -207,6 +211,7 @@ pub async fn search_text_with_sse(
             let Ok(block) = block else{
                 error!(
                     task = "parse block",
+                    contents = contents,
                     error = block.unwrap_err().to_string(),
                 );
                 continue;
@@ -214,7 +219,6 @@ pub async fn search_text_with_sse(
             resources.push(block.iter().flat_map(|b|b.block_type.plain_text()).flatten().collect::<Vec<_>>().join("\n"));
             page_ids.push(notion_page_id);
         }
-
 
             let system_prompt = format!(r#"
         You are an assistant helping a user who gives you a prompt.
@@ -269,7 +273,10 @@ pub async fn search_text_with_sse(
                 content: user_prompt.to_string(),
             });
 
-
+            info!(
+                task = "build user prompt",
+                user_prompt = user_prompt
+            );
 
                 let (message_tx, mut message_rx) = mpsc::channel(100);
                 let (page_tx, mut page_rx) = mpsc::channel(1);
