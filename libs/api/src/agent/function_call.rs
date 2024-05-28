@@ -29,25 +29,21 @@ impl FunctionCallAgent {
     pub fn new(
         client: cloudflare::models::Models,
         available_tools: Vec<Tool>,
-        additional_system_prompt: Option<String>,
         example_tool_call: String,
         example_tool_response: String,
         history: Vec<Message>,
     ) -> Self {
         let system_prompt = format!(
             r#"
-        Principal:
         You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags.
-        Your response is whether to call one or more functions or not to get more information and context by user's prompt.
-        Don't make assumptions about what values to plug into functions.
+        You will only answer function calls when needed. Your result will be used to downstream AI models.
+        You will make efficient function calls to the available tools from user's prompt.
+        Based on your function calling, the downstream models get more information and context.
         Here are the available tools:
         <tools> {} </tools> 
         Use the following pydantic model json schema for each tool call you will make: {}
         For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
         <tool_call> {} </tool_call>
-
-        Additional:
-        {}
         "#,
             serde_json::to_string(&available_tools).unwrap(),
             json!(
@@ -72,8 +68,7 @@ impl FunctionCallAgent {
                     "arguments": "<args-dict>",
                     "name": "function-name"
                 }
-            ),
-            additional_system_prompt.unwrap_or_default()
+            )
         );
         Self {
             client,

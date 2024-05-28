@@ -166,7 +166,6 @@ pub async fn search_text_with_sse(
                 },
             },
         ],
-        None,
         r#"<tool_call>{"arguments": {"word": "about"}, "name": "find_article_by_word"}</tool_call>"#.to_string(),
         format!(r#"<tool_response>{{"title": "About", "content": "{}"}}</tool_response>"#,content_in_about),
         params.history.clone(),
@@ -470,6 +469,7 @@ async fn retriever(
     info!(
         task = "retriever",
         prompt = prompt,
+        page_ids = &page_ids.join(","),
         context = context.join("\n"),
     );
 
