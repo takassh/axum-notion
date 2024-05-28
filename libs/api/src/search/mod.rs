@@ -222,9 +222,10 @@ pub async fn search_text_with_sse(
 
         info!(
             task = "tool calls",
+            prompt = &params.prompt,
             tool_calls = tool_calls.into_iter().map(|t|format!("function:{},arguments:{:?}",t.name,t.arguments)).collect::<Vec<_>>().join("\n"),
-            page_ids = page_ids.join(","),
-            resources = resources.join("\n"),
+            page_ids = &page_ids.join(","),
+            resources = &resources.join("\n"),
         );
 
             let system_prompt = format!(r#"
