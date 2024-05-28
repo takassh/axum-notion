@@ -2649,9 +2649,9 @@ dependencies = [
 
 [[package]]
 name = "notion-client"
-version = "0.1.14"
+version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c2a21ec2aa625fce569e96585ec76b1d6e8496bc73e14e7f204df200eeeeff3"
+checksum = "074ca796c2a8228261a27932ce294401b1b790711dbf93a84a53d448116b26ea"
 dependencies = [
  "chrono",
  "reqwest 0.11.24",

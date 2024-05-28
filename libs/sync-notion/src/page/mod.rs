@@ -198,6 +198,7 @@ async fn scan_all_pages(state: Arc<State>, page_id: &str) -> Vec<Page> {
             Err(e) => {
                 error!(
                     task = "query_a_database",
+                    page_id = page_id,
                     request = format!("{:?}", request),
                     error = e.to_string()
                 );

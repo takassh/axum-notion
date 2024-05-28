@@ -185,26 +185,29 @@ pub async fn search_text_with_sse(
         let mut resources = vec![];
         for tool_call in tool_calls{
             let params = json!(&tool_call.arguments);
-            let Ok(CallResponse { id: _, method: _, value }) = state.rpc.call_route(None,tool_call.name,Some(params)).await else{
+            let response = state.rpc.call_route(None,tool_call.name,Some(params)).await;
+            let Ok(CallResponse { id: _, method: _, value }) = response else{
                 error!(
-                    task = "rpc call",
-                    error = "rpc call failed",
+                    task = "call route",
+                    error = response.unwrap_err().to_string(),
                 );
                 continue;
             };
 
-            let Ok(entity::block::Block{ notion_page_id, updated_at:_, contents }) = serde_json::from_value::<entity::block::Block>(value)else{
+            let block = serde_json::from_value::<entity::block::Block>(value);
+            let Ok(entity::block::Block{ notion_page_id, updated_at:_, contents }) = block else{
                 error!(
                     task = "parse block",
-                    error = "parse block failed",
+                    error = block.unwrap_err().to_string(),
                 );
                 continue;
             };
 
-            let Ok(block) = serde_json::from_str::<Vec<Block>>(&contents)else{
+            let block = serde_json::from_str::<Vec<Block>>(&contents);
+            let Ok(block) = block else{
                 error!(
                     task = "parse block",
-                    error = "parse block failed",
+                    error = block.unwrap_err().to_string(),
                 );
                 continue;
             };

@@ -19,6 +19,7 @@ mod m20240526_114430_remove_fk_prompt_session_id;
 mod m20240526_114439_remove_fk_prompt_id;
 mod m20240526_114446_remove_fk_page_id;
 mod m20240528_111910_add_title_column;
+mod m20240528_141124_add_tools_prompt;
 
 pub struct Migrator;
 
@@ -47,6 +48,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20240526_114439_remove_fk_prompt_id::Migration),
             Box::new(m20240526_114446_remove_fk_page_id::Migration),
             Box::new(m20240528_111910_add_title_column::Migration),
+            Box::new(m20240528_141124_add_tools_prompt::Migration),
         ]
     }
 }

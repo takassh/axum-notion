@@ -87,7 +87,8 @@ impl FunctionCallAgent {
 
 impl Agent for FunctionCallAgent {
     async fn prompt(&self, prompt: &str) -> anyhow::Result<Vec<ToolCall>> {
-        let messages = [Message {
+        let messages = [
+            Message {
                 role: "system".to_string(),
                 content: self.system_prompt.to_string(),
             },
@@ -102,12 +103,11 @@ impl Agent for FunctionCallAgent {
             Message {
                 role: "tool".to_string(),
                 content: self.example_tool_response.to_string(),
-            }];
+            },
+        ];
 
-        let mut messages: Vec<_> = messages
-            .iter()
-            .chain(&self.history).cloned()
-            .collect();
+        let mut messages: Vec<_> =
+            messages.iter().chain(&self.history).cloned().collect();
 
         messages.push(Message {
             role: "user".to_string(),
