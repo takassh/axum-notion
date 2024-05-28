@@ -113,16 +113,6 @@ pub async fn search_text_with_sse(
     Json(params): Json<SearchParam>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let stream = stream! {
-        let blocks = state.repo.block.find_by_notion_page_id("74c5e456-0feb-4049-a217-ba6ad67869ca").await;
-        let Ok(Some(blocks)) = blocks else {
-            error!(
-                task = "get about page",
-                error = blocks.unwrap_err().to_string(),
-            );
-            return;
-        };
-
-
         let result = retriever(&state, &params.prompt).await;
         let Ok((context,mut page_ids)) = result else {
             error!(
@@ -131,11 +121,6 @@ pub async fn search_text_with_sse(
             );
             return;
         };
-
-        let blocks:Vec<Block> = serde_json::from_str(&blocks.contents).unwrap();
-        let content_in_about = blocks.iter().flat_map(|block|{
-            block.block_type.plain_text()
-        }).flatten().collect::<Vec<_>>().join("\n");
 
         let title_and_dates = get_page_title_and_dates(&state).await;
         let Ok(title_and_dates) = title_and_dates else {
@@ -153,22 +138,19 @@ pub async fn search_text_with_sse(
                 r#type: "function".to_string(),
                 function: Function {
                     name: "find_article_by_word".to_string(),
-                    description: "Retrieve articles with titles containing a specified word. The shorter the word, the more likely the result will be retrieved. This function may be called any number of times.".to_string(),
+                    description: "Retrieve articles with titles containing a specified word. The shorter the word, the more likely the result will be retrieved.".to_string(),
                     parameters: Some(
                         Parameters {
                             r#type: "object".to_string(),
                            properties:HashMap::from([
                             ("word".to_string(), PropertyType::String),
                         ]),
-                            ..Default::default()
+                          required: Some(vec!["word".to_string()]),
                         }
                     ),
                 },
             },
         ],
-        "What is this site?".to_string(),
-        r#"<tool_call>{"arguments": {"word": "about"}, "name": "find_article_by_word"}</tool_call><tool_call>{"arguments": {"word": "site"}, "name": "find_article_by_word"}</tool_call>"#.to_string(),
-        format!(r#"<tool_response>{{"title": "About", "content": "{}"}}</tool_response>"#,content_in_about),
         params.history.clone(),
     );
 
@@ -243,7 +225,6 @@ pub async fn search_text_with_sse(
         "{}"
         Information: 
         "{}"
-        Resources:
         "{}"
         Current Date:
         "{}"
