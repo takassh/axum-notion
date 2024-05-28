@@ -166,7 +166,8 @@ pub async fn search_text_with_sse(
                 },
             },
         ],
-        r#"<tool_call>{"arguments": {"word": "about"}, "name": "find_article_by_word"}</tool_call>"#.to_string(),
+        "What is this site?".to_string(),
+        r#"<tool_call>{"arguments": {"word": "about"}, "name": "find_article_by_word"}</tool_call><tool_call>{"arguments": {"word": "site"}, "name": "find_article_by_word"}</tool_call>"#.to_string(),
         format!(r#"<tool_response>{{"title": "About", "content": "{}"}}</tool_response>"#,content_in_about),
         params.history.clone(),
     );

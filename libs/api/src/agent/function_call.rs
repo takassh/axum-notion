@@ -21,6 +21,7 @@ pub trait Agent {
 pub struct FunctionCallAgent {
     client: cloudflare::models::Models,
     system_prompt: String,
+    example_user_prompt: String,
     example_tool_call: String,
     example_tool_response: String,
     history: Vec<Message>,
@@ -30,6 +31,7 @@ impl FunctionCallAgent {
     pub fn new(
         client: cloudflare::models::Models,
         available_tools: Vec<Tool>,
+        example_user_prompt: String,
         example_tool_call: String,
         example_tool_response: String,
         history: Vec<Message>,
@@ -37,14 +39,14 @@ impl FunctionCallAgent {
         let system_prompt = format!(
             r#"
         You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags.
-        You will only answer function calls when needed. Your result will be used to downstream AI models.
-        You will make efficient function calls to the available tools from user's prompt.
-        Based on your function calling, the downstream models get more information and context.
+        You will make efficient function calls to the available tools from user's prompt and conversation history.
         Here are the available tools:
         <tools> {} </tools> 
-        Use the following pydantic model json schema for each tool call you will make: {}
-        For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
+        Use the following pydantic model json schema to answer: {}
+        You never speak any natural language. Instead, you return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
         <tool_call> {} </tool_call>
+        You can call multiple tools in a single response.
+        You are placed on my blog site.
         "#,
             serde_json::to_string(&available_tools).unwrap(),
             json!(
@@ -74,6 +76,7 @@ impl FunctionCallAgent {
         Self {
             client,
             system_prompt,
+            example_user_prompt,
             example_tool_call,
             example_tool_response,
             history,
@@ -90,7 +93,7 @@ impl Agent for FunctionCallAgent {
             },
             Message {
                 role: "user".to_string(),
-                content: "What is this site?".to_string(),
+                content: self.example_user_prompt.to_string(),
             },
             Message {
                 role: "assistant".to_string(),
