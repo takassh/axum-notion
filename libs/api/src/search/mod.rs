@@ -153,7 +153,7 @@ pub async fn search_text_with_sse(
                 r#type: "function".to_string(),
                 function: Function {
                     name: "find_article_by_word".to_string(),
-                    description: "Get an article which title contains a given word".to_string(),
+                    description: "Retrieve articles with titles containing a specified word. The shorter the word, the more likely the result will be retrieved. This function may be called any number of times.".to_string(),
                     parameters: Some(
                         Parameters {
                             r#type: "object".to_string(),
