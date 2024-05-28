@@ -29,11 +29,11 @@ repository = { path = "./libs/repository" }
 cloudflare = { path = "./libs/cloudflare" }
 rpc = { path = "./libs/rpc" }
 util = { path = "./libs/util" }
-toml = "0.8.12"
+toml = "0.8.13"
 url = "2.5.0"
 tracing-subscriber = { version = "0.3.18", features = ["fmt", "env-filter"] }
 tracing-loki = "0.2.4"
-base64 = "0.22.0"
+base64 = "0.22.1"
 anyhow = "1.0.81"
 futures = "0.3.30"
 notion-client = "0.1.14"
