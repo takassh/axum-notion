@@ -267,6 +267,18 @@ fn receiver(
                             continue;
                         }
 
+                        let title = page.properties.get("title").map(|t| {
+                            let PageProperty::Title { id: _, title, .. } = t
+                            else {
+                                return "".to_string();
+                            };
+                            title
+                                .iter()
+                                .flat_map(|t| t.plain_text())
+                                .collect::<Vec<_>>()
+                                .join("")
+                        });
+
                         let _page = page.clone();
                         let page_model = PageEntity {
                             notion_page_id: _page.id.clone(),
@@ -278,6 +290,7 @@ fn receiver(
                                 Parent::PageId { .. } => ParentType::Page,
                                 _ => ParentType::Database,
                             },
+                            title: title.unwrap_or_default().to_lowercase(),
                             contents: json,
                             created_at: _page.created_time,
                             updated_at: None,

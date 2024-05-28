@@ -104,9 +104,11 @@ async fn main() -> anyhow::Result<()> {
         .unwrap(),
     );
 
+    let rpc = rpc::serve(repository.clone())?;
     let router = serve(
         repository,
         notion_client,
+        rpc,
         qdrant,
         cloudflare,
         s3,

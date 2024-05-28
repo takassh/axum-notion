@@ -5,7 +5,9 @@ use futures_core::Stream;
 use crate::models::{text_generation::LLAMA_3_8B_INSTRUCT, Models};
 use futures_util::StreamExt;
 
-use super::{TextGeneration, TextGenerationJsonResult};
+use super::{
+    TextGeneration, TextGenerationJsonResult, HERMES_2_PRO_MISTRAL_7B,
+};
 
 impl TextGeneration for Models {
     async fn llama_3_8b_instruct(
@@ -32,5 +34,19 @@ impl TextGeneration for Models {
                     yield Ok(data);
                 }
             }
+    }
+
+    async fn hermes_2_pro_mistral_7b(
+        &self,
+        request: super::TextGenerationRequest,
+    ) -> anyhow::Result<super::TextGenerationResponse> {
+        let text = self
+            .string_response(request, HERMES_2_PRO_MISTRAL_7B)
+            .await?;
+
+        let response =
+            serde_json::from_str(&text).context("failed to parse response")?;
+
+        Ok(response)
     }
 }

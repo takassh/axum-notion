@@ -12,6 +12,7 @@ pub struct Model {
     pub updated_at: Option<DateTime>,
     pub contents: String,
     pub parent_type: String,
+    pub title: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

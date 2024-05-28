@@ -126,8 +126,9 @@ async fn main(
         ),
         sync_github::serve(repository.clone(), config_name, &github_token),
         api::serve(
-            repository,
+            repository.clone(),
             notion_client,
+            rpc::serve(repository).unwrap(),
             qdrant2,
             cloudflare,
             s3,

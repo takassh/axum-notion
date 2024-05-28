@@ -4,6 +4,7 @@ use axum::{middleware, routing::get, routing::post, Router};
 
 use qdrant_client::client::QdrantClient;
 use repository::Repository;
+use rpc_router::Router as RPCRouter;
 use tokio::sync::OnceCell;
 use toml::{map::Map, Value};
 use tower_http::cors::{Any, CorsLayer};
@@ -17,6 +18,7 @@ use utoipauto::utoipauto;
 
 use crate::top::{receive, send};
 
+pub mod agent;
 mod auth;
 pub mod block;
 pub mod event;
@@ -40,6 +42,7 @@ pub enum ApiError {
 pub struct ApiState {
     repo: Repository,
     notion: notion_client::endpoints::Client,
+    rpc: RPCRouter,
     cloudflare: cloudflare::models::Models,
     s3: aws_sdk_s3::Client,
     qdrant: QdrantClient,
@@ -67,6 +70,7 @@ static JWKS_URL: OnceCell<String> = OnceCell::const_new();
 pub async fn serve(
     repository: Repository,
     notion_client: notion_client::endpoints::Client,
+    rpc: RPCRouter,
     qdrant: QdrantClient,
     cloudflare: cloudflare::models::Models,
     s3: aws_sdk_s3::Client,
@@ -95,6 +99,7 @@ pub async fn serve(
     let state = Arc::new(ApiState {
         repo: repository.clone(),
         notion: notion_client,
+        rpc,
         cloudflare,
         s3,
         qdrant,

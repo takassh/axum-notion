@@ -32,6 +32,7 @@ impl From<page::Model> for PageEntity {
             created_at: value.created_at.and_utc(),
             updated_at: value.updated_at.map(|f| Utc.from_utc_datetime(&f)),
             contents: value.contents,
+            title: value.title,
         }
     }
 }
@@ -47,6 +48,7 @@ impl From<PageEntity> for page::ActiveModel {
                 value.updated_at.map(|f| f.naive_utc()),
             ),
             contents: ActiveValue::set(value.contents),
+            title: ActiveValue::set(value.title),
         }
     }
 }
@@ -95,6 +97,18 @@ impl PageRepository {
     ) -> anyhow::Result<Option<PageEntity>> {
         let page = page::Entity::find()
             .filter(Column::NotionPageId.eq(id))
+            .one(&self.db)
+            .await?;
+
+        Ok(page.map(PageEntity::from))
+    }
+
+    pub async fn find_by_word(
+        &self,
+        word: &str,
+    ) -> anyhow::Result<Option<PageEntity>> {
+        let page = page::Entity::find()
+            .filter(Column::Title.contains(word.to_lowercase()))
             .one(&self.db)
             .await?;
 

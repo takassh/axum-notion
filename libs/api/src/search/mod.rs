@@ -1,3 +1,4 @@
+use crate::agent::function_call::Agent;
 use async_stream::stream;
 use axum::{
     extract::{Query, State},
@@ -13,7 +14,11 @@ use cloudflare::models::{
 };
 use entity::prelude::*;
 use futures_util::{pin_mut, Stream};
-use notion_client::objects::page::{Page, PageProperty};
+use notion_client::objects::{
+    block::Block,
+    page::{Page, PageProperty},
+};
+use rpc_router::CallResponse;
 use tracing::info;
 
 use qdrant_client::qdrant::{
@@ -21,12 +26,15 @@ use qdrant_client::qdrant::{
     SearchPoints, WithPayloadSelector,
 };
 use serde_json::json;
-use std::{convert::Infallible, sync::Arc};
+use std::{collections::HashMap, convert::Infallible, sync::Arc};
 use tokio::{select, sync::mpsc};
 use tokio_stream::StreamExt as _;
 use tracing::error;
 
 use crate::{
+    agent::function_call::{
+        Function, FunctionCallAgent, Parameters, PropertyType, Tool,
+    },
     auth::Claims,
     response::{ApiResponse, IntoApiResponse},
     ApiState,
@@ -105,6 +113,30 @@ pub async fn search_text_with_sse(
     Json(params): Json<SearchParam>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let stream = stream! {
+        let blocks = state.repo.block.find_by_notion_page_id("74c5e456-0feb-4049-a217-ba6ad67869ca").await;
+        let Ok(Some(blocks)) = blocks else {
+            error!(
+                task = "get about page",
+                error = blocks.unwrap_err().to_string(),
+            );
+            return;
+        };
+
+
+        let result = retriever(&state, &params.prompt).await;
+        let Ok((context,mut page_ids)) = result else {
+            error!(
+                task = "get context by retriever",
+                error = result.unwrap_err().to_string(),
+            );
+            return;
+        };
+
+        let blocks:Vec<Block> = serde_json::from_str(&blocks.contents).unwrap();
+        let content_in_about = blocks.iter().flat_map(|block|{
+            block.block_type.plain_text()
+        }).flatten().collect::<Vec<_>>().join("\n");
+
         let title_and_dates = get_page_title_and_dates(&state).await;
         let Ok(title_and_dates) = title_and_dates else {
             error!(
@@ -113,14 +145,72 @@ pub async fn search_text_with_sse(
             );
             return;
         };
-            let result = retriever(&state, &params.prompt).await;
-            let Ok((context,page_ids)) = result else {
+
+        let function_call_agent = FunctionCallAgent::new(
+            state.cloudflare.clone(),
+            vec![
+            Tool {
+                r#type: "function".to_string(),
+                function: Function {
+                    name: "find_article_by_word".to_string(),
+                    description: "Get an article which title contains a given word".to_string(),
+                    parameters: Some(
+                        Parameters {
+                            r#type: "object".to_string(),
+                           properties:HashMap::from([
+                            ("word".to_string(), PropertyType::String),
+                        ]),
+                            ..Default::default()
+                        }
+                    ),
+                },
+            },
+        ],
+        None,
+        r#"<tool_call>{"arguments": {"word": "about"}, "name": "find_article_by_word"}</tool_call>"#.to_string(),
+        format!(r#"<tool_response>{{"title": "About", "content": "{}"}}</tool_response>"#,content_in_about)
+    );
+
+        let tool_calls = function_call_agent.prompt(&params.prompt).await;
+        let Ok(tool_calls) = tool_calls else {
+            error!(
+                task = "function call prompt",
+                error = tool_calls.unwrap_err().to_string(),
+            );
+            return;
+        };
+
+
+        let mut resources = vec![];
+        for tool_call in tool_calls{
+            let params = json!(&tool_call.arguments);
+            let Ok(CallResponse { id: _, method: _, value }) = state.rpc.call_route(None,tool_call.name,Some(params)).await else{
                 error!(
-                    task = "get context by retriever",
-                    error = result.unwrap_err().to_string(),
+                    task = "rpc call",
+                    error = "rpc call failed",
                 );
-                return;
+                continue;
             };
+
+            let Ok(entity::block::Block{ notion_page_id, updated_at:_, contents }) = serde_json::from_value::<entity::block::Block>(value)else{
+                error!(
+                    task = "parse block",
+                    error = "parse block failed",
+                );
+                continue;
+            };
+
+            let Ok(block) = serde_json::from_str::<Vec<Block>>(&contents)else{
+                error!(
+                    task = "parse block",
+                    error = "parse block failed",
+                );
+                continue;
+            };
+            resources.push(block.iter().flat_map(|b|b.block_type.plain_text()).flatten().collect::<Vec<_>>().join("\n"));
+            page_ids.push(notion_page_id);
+        }
+
 
             let system_prompt = format!(r#"
         You are an assistant helping a user who gives you a prompt.
@@ -137,11 +227,14 @@ pub async fn search_text_with_sse(
         "{}"
         Information: 
         "{}"
+        Resources:
+        "{}"
         Current Date:
         "{}"
         "#,
                 params.prompt,
                 context.join("\n"),
+                resources.join("\n"),
                 chrono::Utc::now().format("%d/%m/%Y %H:%M")
             );
 
