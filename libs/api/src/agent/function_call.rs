@@ -5,6 +5,7 @@ use cloudflare::models::text_generation::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tracing::info;
 
 pub trait Agent {
     fn prompt(
@@ -110,6 +111,11 @@ impl Agent for FunctionCallAgent {
         });
 
         let response = self.call(messages).await?;
+
+        info!(
+            "FunctionCallAgent response: {}, ptompt:{}",
+            response, prompt
+        );
 
         if !response.contains("<tool_call>") {
             return Ok(vec![]);
