@@ -37,7 +37,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20240325_125942_create_index_at_post::Migration),
             Box::new(m20240407_034855_create_notion_database_table::Migration),
             Box::new(m20240512_100556_create_static_page_table::Migration),
-            Box::new(m20240512_104914_rename_to_notion_parent_id_table::Migration),
+            Box::new(
+                m20240512_104914_rename_to_notion_parent_id_table::Migration,
+            ),
             Box::new(m20240512_110241_add_parent_type_column::Migration),
             Box::new(m20240512_123038_remove_contents_column::Migration),
             Box::new(m20240517_085139_create_user_table::Migration),
