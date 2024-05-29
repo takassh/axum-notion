@@ -174,6 +174,11 @@ pub async fn serve(
         .route_layer(middleware::from_fn(auth::user_auth))
         .with_state(state.clone());
 
+    // nudge
+    let nudge_router = Router::new()
+        .route("/", get(search::search_text))
+        .with_state(state.clone());
+
     // runtime
     // let _ = Router::new().route("/", post(runtime::post_code));
 
@@ -191,6 +196,7 @@ pub async fn serve(
         .nest("/events", event_router)
         .nest("/posts", post_router)
         .nest("/search", search_router)
+        .nest("/nudge", nudge_router)
         // .nest("/runtime", runtime_router)
         .nest("/top", top_router)
         .layer(
