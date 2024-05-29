@@ -176,7 +176,7 @@ pub async fn serve(
 
     // nudge
     let nudge_router = Router::new()
-        .route("/", get(search::search_text))
+        .route("/", post(nudge::post_nudge))
         .with_state(state.clone());
 
     // runtime
