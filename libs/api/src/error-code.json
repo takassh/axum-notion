@@ -19,5 +19,6 @@
     "502-016": "failed to put object",
     "502-017": "failed to update page properties",
     "502-018": "failed to save page",
-    "502-019": "failed to save prompt"
+    "502-019": "failed to save prompt",
+    "502-020": "failed to save nudge"
 }

@@ -280,6 +280,15 @@ fn receiver(
                                 .join("")
                         });
 
+                        let draft = page.properties.get("draft").map(|t| {
+                            let PageProperty::Checkbox { id: _, checkbox } = t
+                            else {
+                                return false;
+                            };
+
+                            *checkbox
+                        });
+
                         let _page = page.clone();
                         let page_model = PageEntity {
                             notion_page_id: _page.id.clone(),
@@ -292,6 +301,7 @@ fn receiver(
                                 _ => ParentType::Database,
                             },
                             title: title.unwrap_or_default().to_lowercase(),
+                            draft: draft.unwrap_or_default(),
                             contents: json,
                             created_at: _page.created_time,
                             updated_at: None,

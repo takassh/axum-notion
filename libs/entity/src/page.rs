@@ -9,6 +9,7 @@ pub struct Page {
     pub updated_at: Option<DateTime<Utc>>,
     pub contents: String,
     pub title: String,
+    pub draft: bool,
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]

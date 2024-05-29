@@ -6,6 +6,7 @@ pub struct Prompt {
     pub prompt_session_id: String,
     pub user_prompt: String,
     pub assistant_prompt: String,
+    pub tools_prompt: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }

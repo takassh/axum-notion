@@ -12,6 +12,7 @@ pub struct Model {
     pub assistant_prompt: String,
     pub created_at: DateTime,
     pub updated_at: DateTime,
+    pub tools_prompt: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

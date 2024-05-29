@@ -5,6 +5,7 @@ use event::EventRepository;
 use migration::Migrator;
 use migration::MigratorTrait;
 use notion_database::NotionDatabaseRepository;
+use nudge::NudgeRepository;
 use page::PageRepository;
 use post::PostRepository;
 use prompt::PromptRepository;
@@ -20,6 +21,7 @@ mod active_models;
 pub mod block;
 pub mod event;
 pub mod notion_database;
+pub mod nudge;
 pub mod page;
 pub mod post;
 pub mod prompt;
@@ -40,6 +42,7 @@ pub struct Repository {
     pub prompt: PromptRepository,
     pub notion_database_id: NotionDatabaseRepository,
     pub static_page: StaticPageRepository,
+    pub nudge: NudgeRepository,
     pub top: Option<TopRepository>,
     pub session: Option<SessionRepository>,
 }
@@ -67,6 +70,7 @@ impl Repository {
             user: UserRepository::new(db.clone()),
             prompt_session: PromptSessionRepository::new(db.clone()),
             prompt: PromptRepository::new(db.clone()),
+            nudge: NudgeRepository::new(db.clone()),
             top: None,
             session: None,
         })

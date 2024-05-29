@@ -33,6 +33,7 @@ impl From<page::Model> for PageEntity {
             updated_at: value.updated_at.map(|f| Utc.from_utc_datetime(&f)),
             contents: value.contents,
             title: value.title,
+            draft: value.draft,
         }
     }
 }
@@ -49,6 +50,7 @@ impl From<PageEntity> for page::ActiveModel {
             ),
             contents: ActiveValue::set(value.contents),
             title: ActiveValue::set(value.title),
+            draft: ActiveValue::set(value.draft),
         }
     }
 }

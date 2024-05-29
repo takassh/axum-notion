@@ -22,6 +22,7 @@ impl From<prompt::Model> for PromptEntity {
             prompt_session_id: value.prompt_session_id,
             user_prompt: value.user_prompt,
             assistant_prompt: value.assistant_prompt,
+            tools_prompt: value.tools_prompt,
             created_at: value.created_at,
             updated_at: value.updated_at,
         }
@@ -39,6 +40,7 @@ impl From<PromptEntity> for prompt::ActiveModel {
             prompt_session_id: ActiveValue::Set(value.prompt_session_id),
             user_prompt: ActiveValue::Set(value.user_prompt),
             assistant_prompt: ActiveValue::Set(value.assistant_prompt),
+            tools_prompt: ActiveValue::Set(value.tools_prompt),
             created_at: if value.created_at == NaiveDateTime::default() {
                 ActiveValue::Set(Utc::now().naive_utc())
             } else {

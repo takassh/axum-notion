@@ -5,6 +5,7 @@ pub mod prelude;
 pub mod block;
 pub mod event;
 pub mod notion_database;
+pub mod nudge;
 pub mod page;
 pub mod post;
 pub mod prompt;

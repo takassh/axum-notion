@@ -96,6 +96,7 @@ pub async fn search_text(
         claims.user_id.unwrap(),
         &params.prompt,
         &response.result.response,
+        None,
         page_ids,
     )
     .await
@@ -202,10 +203,11 @@ pub async fn search_text_with_sse(
             page_ids.push(notion_page_id);
         }
 
+        let tool_calls = tool_calls.into_iter().map(|t|format!("function:{},arguments:{:?}",t.name,t.arguments)).collect::<Vec<_>>().join("\n");
         info!(
             task = "tool calls",
             prompt = &params.prompt,
-            tool_calls = tool_calls.into_iter().map(|t|format!("function:{},arguments:{:?}",t.name,t.arguments)).collect::<Vec<_>>().join("\n"),
+            tool_calls = tool_calls,
             page_ids = &page_ids.join(","),
             resources = &resources.join("\n"),
         );
@@ -358,6 +360,7 @@ pub async fn search_text_with_sse(
                         claims.user_id.unwrap(),
                         &params.prompt,
                         &all_messages,
+                        Some(tool_calls.as_str()),
                         page_ids,
                     ).await;
                     let Ok(session) = session else {
@@ -464,6 +467,7 @@ async fn save_prompt(
     user_id: i32,
     prompt: &str,
     answer: &str,
+    tools: Option<&str>,
     page_ids: Vec<String>,
 ) -> anyhow::Result<String> {
     let prompt_session_id = state
@@ -484,6 +488,7 @@ async fn save_prompt(
                 prompt_session_id: prompt_session_id.clone(),
                 user_prompt: prompt.to_string(),
                 assistant_prompt: answer.to_string(),
+                tools_prompt: tools.unwrap_or_default().to_string(),
                 ..Default::default()
             },
             page_ids,

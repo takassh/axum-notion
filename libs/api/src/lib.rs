@@ -24,6 +24,7 @@ pub mod block;
 pub mod event;
 pub mod healthz;
 pub mod not_found;
+pub mod nudge;
 pub mod page;
 pub mod post;
 mod request;
