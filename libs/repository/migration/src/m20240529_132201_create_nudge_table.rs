@@ -35,7 +35,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum Nudge {
+pub enum Nudge {
     Table,
     Id,
     Content,

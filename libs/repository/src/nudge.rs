@@ -20,6 +20,7 @@ impl From<nudge::Model> for NudgeEntity {
         NudgeEntity {
             id: value.id,
             created_at: value.created_at,
+            page_id: value.page_id,
             content: value.content,
         }
     }
@@ -38,6 +39,7 @@ impl From<NudgeEntity> for nudge::ActiveModel {
             } else {
                 ActiveValue::Set(value.created_at)
             },
+            page_id: ActiveValue::Set(value.page_id),
             content: ActiveValue::Set(value.content),
         }
     }

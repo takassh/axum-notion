@@ -22,6 +22,7 @@ mod m20240528_111910_add_title_column;
 mod m20240528_141124_add_tools_prompt;
 mod m20240529_121200_add_draft_column;
 mod m20240529_132201_create_nudge_table;
+mod m20240529_134720_add_page_id_column;
 
 pub struct Migrator;
 
@@ -36,9 +37,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20240325_125942_create_index_at_post::Migration),
             Box::new(m20240407_034855_create_notion_database_table::Migration),
             Box::new(m20240512_100556_create_static_page_table::Migration),
-            Box::new(
-                m20240512_104914_rename_to_notion_parent_id_table::Migration,
-            ),
+            Box::new(m20240512_104914_rename_to_notion_parent_id_table::Migration),
             Box::new(m20240512_110241_add_parent_type_column::Migration),
             Box::new(m20240512_123038_remove_contents_column::Migration),
             Box::new(m20240517_085139_create_user_table::Migration),
@@ -53,6 +52,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20240528_141124_add_tools_prompt::Migration),
             Box::new(m20240529_121200_add_draft_column::Migration),
             Box::new(m20240529_132201_create_nudge_table::Migration),
+            Box::new(m20240529_134720_add_page_id_column::Migration),
         ]
     }
 }

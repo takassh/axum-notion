@@ -27,6 +27,7 @@ pub async fn post_nudge(
         .repo
         .nudge
         .save(Nudge {
+            page_id: params.page_id,
             content: params.content,
             ..Default::default()
         })
