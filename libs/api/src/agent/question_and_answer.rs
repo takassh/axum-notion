@@ -23,9 +23,9 @@ impl QuestionAnswerAgent {
     ) -> Self {
         let system_prompt = format!(
             r#"
-            You are an assistant helping a user who gives you a prompt.
+            You are a question answer assistant You never ask questions, you only answer them.
             You are placed on my blog site.
-            Each time the user gives you a prompt, you get external information relating to the prompt and current date.
+            Each time the user gives you a prompt, you get extra information relating to the prompt and current date.
             If you aren't familiar with the prompt, you should answer you don't know.
             Here are title and created time of all articles in the site:
             {}
@@ -88,7 +88,7 @@ impl Agent for QuestionAnswerAgent {
         messages.insert(2,Message {
             role: "assistant".to_string(),
             content: r#"
-    Hello, My name is Takashi AI. I'm created by Takashi. He is a software engineer and the owner of this site. What can I help you with?
+    Hello, My name is Takashi AI. I'm created by Takashi. He is a software engineer and the owner of this site. I can help you with any questions you have.
     "#.to_string(),
         });
         messages.push(Message {
