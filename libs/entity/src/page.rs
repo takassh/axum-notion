@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Page {
     pub notion_page_id: String,
     pub notion_parent_id: String,
@@ -12,7 +13,7 @@ pub struct Page {
     pub draft: bool,
 }
 
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub enum ParentType {
     #[default]
     Database,

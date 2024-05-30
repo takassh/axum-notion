@@ -1,4 +1,4 @@
-use crate::agent::function_call::Agent;
+use crate::agent::{question_and_answer::QuestionAnswerAgent, Agent};
 use async_stream::stream;
 use axum::{
     extract::{Query, State},
@@ -7,17 +7,11 @@ use axum::{
 };
 use cloudflare::models::{
     text_embeddings::{StringOrArray, TextEmbeddings, TextEmbeddingsRequest},
-    text_generation::{
-        Message, MessageRequest, PromptRequest, TextGeneration,
-        TextGenerationRequest,
-    },
+    text_generation::{PromptRequest, TextGeneration, TextGenerationRequest},
 };
 use entity::prelude::*;
-use futures_util::{pin_mut, Stream};
-use notion_client::objects::{
-    block::Block,
-    page::{Page, PageProperty},
-};
+use futures_util::Stream;
+use notion_client::objects::page::{Page, PageProperty};
 use rpc_router::CallResponse;
 use tracing::info;
 
@@ -155,7 +149,7 @@ pub async fn search_text_with_sse(
         params.history.clone(),
     );
 
-        let tool_calls = function_call_agent.prompt(&params.prompt).await;
+        let tool_calls = function_call_agent.prompt(&params.prompt,None).await;
         let Ok(tool_calls) = tool_calls else {
             error!(
                 task = "function call prompt",
@@ -177,29 +171,47 @@ pub async fn search_text_with_sse(
                 continue;
             };
 
-            let block = serde_json::from_value::<Option<entity::block::Block>>(value.clone());
-            let Ok(block) = block else{
+            let page = serde_json::from_value::<Option<entity::page::Page>>(value.clone());
+            let Ok(page) = page else{
                 error!(
-                    task = "parse block",
+                    task = "parse page",
                     value = value.to_string(),
-                    error = block.unwrap_err().to_string(),
+                    error = page.unwrap_err().to_string(),
                 );
                 continue;
             };
-            let Some(entity::block::Block{ notion_page_id, updated_at:_, contents }) = block else{
+            let Some(entity::page::Page{notion_page_id,updated_at:_,contents, notion_parent_id:_, parent_type:_, created_at:_, title, draft:_ }) = page else{
                 continue;
             };
 
-            let block = serde_json::from_str::<Vec<Block>>(&contents);
-            let Ok(block) = block else{
+            let page = serde_json::from_str::<Page>(&contents);
+            let Ok(page) = page else{
                 error!(
-                    task = "parse block",
+                    task = "parse page",
                     contents = contents,
-                    error = block.unwrap_err().to_string(),
+                    error = page.unwrap_err().to_string(),
                 );
                 continue;
             };
-            resources.push(block.iter().flat_map(|b|b.block_type.plain_text()).flatten().collect::<Vec<_>>().join("\n"));
+
+    let Some(summary) = page.properties.get("summary") else {
+        continue;
+    };
+    let PageProperty::RichText { id: _, rich_text } = summary else {
+        error!(
+            task = "failed to get summary",
+            contents = contents,
+        );
+        continue;
+    };
+
+    let summary = rich_text
+        .iter()
+        .flat_map(|t| t.plain_text())
+        .collect::<Vec<_>>()
+        .join("");
+
+            resources.push(format!("\"title:{}\"\n\"summary:{}\"",title,summary));
             page_ids.push(notion_page_id);
         }
 
@@ -212,127 +224,83 @@ pub async fn search_text_with_sse(
             resources = &resources.join("\n"),
         );
 
-            let system_prompt = format!(r#"
-        You are an assistant helping a user who gives you a prompt.
-        You are placed on my blog site.
-        Each time the user gives you a prompt, you get external information relating to the prompt and current date.
-        If you aren't familiar with the prompt, you should answer you don't know.
-        Here are title and created time of all articles in the site:
-        {}
-        "#,title_and_dates.iter().map(|(title,date)|format!("{},{}",title,date)).collect::<Vec<_>>().join("\n"));
+        let (message_tx, mut message_rx) = mpsc::channel(100);
+        let (page_tx, mut page_rx) = mpsc::channel(1);
 
-            let user_prompt = format!(
-                r#"
-        Prompt: 
-        "{}"
-        Information: 
-        "{}"
-        "{}"
-        Current Date:
-        "{}"
-        "#,
-                params.prompt,
-                context.join("\n"),
-                resources.join("\n"),
-                chrono::Utc::now().format("%d/%m/%Y %H:%M")
+        let question_answer_agent = QuestionAnswerAgent::new(
+            state.cloudflare.clone(),
+            title_and_dates.iter().map(|(title,date)|format!("{},{}",title,date)).collect::<Vec<_>>().join("\n"),
+            params.history.clone(),
             );
 
-            let mut messages = params.history;
-            messages.insert(0,Message {
-                role: "system".to_string(),
-                content: system_prompt.to_string(),
-            });
-            messages.insert(1,Message {
-                role: "user".to_string(),
-                content: r#"
-        Prompt: 
-        "Hello, What can you help me?"
-        Information: 
-        You are an assistant helping a user.
-        You are created by Takashi, who is a software engineer and the owner where you are placed.
-        Your name is Takashi AI.
-        "#.to_string(),
-            });
-            messages.insert(2,Message {
-                role: "assistant".to_string(),
-                content: r#"
-        Hello, My name is Takashi AI. I'm created by Takashi. He is a software engineer and the owner of this site. What can I help you with?
-        "#.to_string(),
-            });
-            messages.push(Message {
-                role: "user".to_string(),
-                content: user_prompt.to_string(),
-            });
 
-                let (message_tx, mut message_rx) = mpsc::channel(100);
-                let (page_tx, mut page_rx) = mpsc::channel(1);
-
-                // Receive messages from LLM
-                let _state = state.clone();
-                tokio::spawn(async move{
-                    let response = _state
-                    .cloudflare
-                    .llama_3_8b_instruct_with_stream(TextGenerationRequest::Message(
-                        MessageRequest {
-                            messages,
-                            stream: Some(true),
-                            ..Default::default()
-                        },
-                    ));
-                    pin_mut!(response); // needed for iteration
-                    while let Ok(Some(data)) = response.next().await.transpose() {
-                        for d in data{
-                            let result = message_tx.send(d.response).await;
-                                              if let Err(err) = result {
-                                        error!(
-                                            task = "send message event",
-                                            error = err.to_string()
-                                        );
-                                    }
-
-                        }
-                    }
-                });
-
-                // Take pages from page ids
-                let _state = state.clone();
-                tokio::spawn(async move{
-                    let mut pages = vec![];
-                    for id in &page_ids{
-                        let result = _state.repo.page.find_by_id(id).await;
-                        let Ok(page) = result else {
+        let _prompt = params.prompt.clone();
+        let context_resources = format!("\"chunk:{}\"\n\"title and summary:{}\"",context.join("\n"),resources.join("\n"));
+        tokio::spawn(async move{
+            let mut question_answer = question_answer_agent.prompt(&_prompt,Some(&context_resources)).await;
+        while let Ok(Some(data)) = question_answer.next().await.transpose() {
+            for d in data{
+                let result = message_tx.send(d.response).await;
+                                if let Err(err) = result {
                             error!(
-                                task = "get page by notion client",
-                                error = result.unwrap_err().to_string(),
+                                task = "send message event",
+                                error = err.to_string()
                             );
-                            continue;
-                        };
+                        }
+            }
+        }
+    });
 
-                        let Some(page) = page else{
-                            continue;
-                        };
+        // Take pages from page ids
+        let _state = state.clone();
+        tokio::spawn(async move{
+            let mut pages = vec![];
+            for id in &page_ids{
+                let result = _state.repo.page.find_by_id(id).await;
+                let Ok(page) = result else {
+                    error!(
+                        task = "get page by notion client",
+                        error = result.unwrap_err().to_string(),
+                    );
+                    continue;
+                };
 
-                        pages.push(page.contents);
-                    }
+                let Some(page) = page else{
+                    continue;
+                };
 
-                    let result = page_tx.send(pages).await;
-                    if let Err(err) = result {
-                        error!(
-                            task = "send message event",
-                            error = err.to_string()
-                        );
-                    }
-                });
+                let contents = page.contents;
+                let page = serde_json::from_str::<Page>(&contents);
+                let Ok(page) = page else{
+                    error!(
+                        task = "parse page",
+                        contents = contents,
+                        error = page.unwrap_err().to_string(),
+                    );
+                    continue;
+                };
+                pages.push(page);
+            }
 
-                let mut all_messages = String::new();
-                let mut page_ids = vec![];
+            let result = page_tx.send(pages).await;
+            if let Err(err) = result {
+                error!(
+                    task = "send message event",
+                    error = err.to_string()
+                );
+            }
+        });
+
+        let mut all_messages = String::new();
+        let mut page_ids = vec![];
+
         loop {
             select! {
                 Some(message) = message_rx.recv() => {
                     let event =  Event::default().json_data(json!({"message":message}));
                      let Ok(event) = event else {
                         error!(
-                            task = "event json_data",
+                            task = "event json_data message",
                             error = event.unwrap_err().to_string()
                         );
                         continue;
@@ -342,11 +310,11 @@ pub async fn search_text_with_sse(
                     yield event;
                 }
                 Some(pages) = page_rx.recv() => {
-                    page_ids = pages.clone().iter().map(|s|serde_json::from_str::<Page>(s).unwrap().id).collect();
+                    page_ids = pages.iter().map(|p|p.id.clone()).collect();
                     let event =  Event::default().json_data(json!({"pages":pages}));
                     let Ok(event) = event else {
                        error!(
-                           task = "event json_data",
+                           task = "event json_data pages",
                            error = event.unwrap_err().to_string()
                        );
                        continue;
@@ -373,7 +341,7 @@ pub async fn search_text_with_sse(
                     let event =  Event::default().json_data(json!({"session":session}));
                     let Ok(event) = event else {
                        error!(
-                           task = "event json_data",
+                           task = "event json_data session",
                            error = event.unwrap_err().to_string()
                        );
                        break;

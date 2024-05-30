@@ -455,10 +455,9 @@ async fn store_vectors(
         .collect::<Vec<_>>()
         .join("");
 
-    let summary = page
-        .properties
-        .get("summary")
-        .context("failed to get title")?;
+    let Some(summary) = page.properties.get("summary") else {
+        return Ok(());
+    };
     let PageProperty::RichText { id: _, rich_text } = summary else {
         return Err(anyhow!("failed to get summary"));
     };

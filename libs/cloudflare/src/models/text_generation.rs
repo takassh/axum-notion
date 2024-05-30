@@ -16,7 +16,7 @@ pub trait TextGeneration {
            + Send;
 
     fn llama_3_8b_instruct_with_stream(
-        &self,
+        self,
         request: TextGenerationRequest,
     ) -> impl Stream<Item = anyhow::Result<Vec<TextGenerationJsonResult>>> + Send;
 

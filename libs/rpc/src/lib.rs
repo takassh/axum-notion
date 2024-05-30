@@ -1,4 +1,4 @@
-use entity::block::Block;
+use entity::prelude::*;
 use repository::Repository;
 use rpc_router::{
     router_builder, Router, RpcHandlerError, RpcParams, RpcResource,
@@ -34,16 +34,11 @@ pub struct ParamsFindByWord {
 pub async fn find_article_by_word(
     state: RpcState,
     params: ParamsFindByWord,
-) -> Result<Option<Block>, RpcError> {
-    let page = state.repo.page.find_by_word(&params.word).await?;
-    let Some(page) = page else {
-        return Ok(None);
-    };
-
+) -> Result<Option<PageEntity>, RpcError> {
     state
         .repo
-        .block
-        .find_by_notion_page_id(&page.notion_page_id)
+        .page
+        .find_by_word(&params.word)
         .await
         .map_err(RpcError::RepositoryError)
 }

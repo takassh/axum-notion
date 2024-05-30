@@ -23,7 +23,7 @@ impl TextGeneration for Models {
     }
 
     fn llama_3_8b_instruct_with_stream(
-        &self,
+        self,
         request: super::TextGenerationRequest,
     ) -> impl Stream<Item = anyhow::Result<Vec<TextGenerationJsonResult>>> {
         stream! {
