@@ -317,18 +317,11 @@ fn receiver(
                         let (
                             save_page_result,
                             save_post_result,
-                            store_title_result,
-                            store_summary_result,
+                            store_vectors_result,
                         ) = join!(
                             state.repository.page.save(page_model.clone()),
                             state.repository.post.save(post_model.clone()),
-                            store_title(
-                                &state.cloudflare,
-                                &state.qdrant,
-                                state.collention.clone(),
-                                page.clone()
-                            ),
-                            store_summary(
+                            store_vectors(
                                 &state.cloudflare,
                                 &state.qdrant,
                                 state.collention.clone(),
@@ -352,17 +345,9 @@ fn receiver(
                             );
                         }
 
-                        if let Err(e) = store_title_result {
+                        if let Err(e) = store_vectors_result {
                             error!(
-                                task = "store title vector",
-                                model = format!("{:?}", page),
-                                error = e.to_string()
-                            );
-                        }
-
-                        if let Err(e) = store_summary_result {
-                            error!(
-                                task = "store summary vector",
+                                task = "store vectors",
                                 model = format!("{:?}", page),
                                 error = e.to_string()
                             );
@@ -448,7 +433,7 @@ async fn delete_vectors(
     Ok(())
 }
 
-async fn store_title(
+async fn store_vectors(
     cloudflare: &cloudflare::models::Models,
     qdrant: &qdrant_client::client::QdrantClient,
     collection: String,
@@ -470,47 +455,6 @@ async fn store_title(
         .collect::<Vec<_>>()
         .join("");
 
-    let embedding = cloudflare
-        .bge_small_en_v1_5(TextEmbeddingsRequest {
-            text: title.as_str().into(),
-        })
-        .await
-        .context(format!("failed to embed. {}", title))?;
-
-    let Some(vectors) = embedding.result.data.first() else {
-        return Err(anyhow!("failed to get vectors. {}", title));
-    };
-
-    let mut map = HashMap::new();
-    map.insert("page_id".to_string(), Value::from(page_id.clone()));
-    map.insert("document".to_string(), Value::from(title.clone()));
-    map.insert(
-        "type".to_string(),
-        Value::from(serde_json::to_string(&DocumentType::Page).unwrap()),
-    );
-
-    let points = vec![PointStruct::new(
-        PointId::from(page_id),
-        vectors.clone(),
-        Payload::new_from_hashmap(map),
-    )];
-
-    qdrant
-        .upsert_points(collection.clone(), None, points, None)
-        .await
-        .context(format!("failed to upsert. {}", title))?;
-
-    Ok(())
-}
-
-async fn store_summary(
-    cloudflare: &cloudflare::models::Models,
-    qdrant: &qdrant_client::client::QdrantClient,
-    collection: String,
-    page: Page,
-) -> anyhow::Result<()> {
-    let page_id = page.id;
-
     let summary = page
         .properties
         .get("summary")
@@ -525,20 +469,22 @@ async fn store_summary(
         .collect::<Vec<_>>()
         .join("");
 
+    let title_summary = format!("{}\n{}", title, summary);
+
     let embedding = cloudflare
         .bge_small_en_v1_5(TextEmbeddingsRequest {
-            text: summary.as_str().into(),
+            text: title_summary.as_str().into(),
         })
         .await
-        .context(format!("failed to embed. {}", summary))?;
+        .context(format!("failed to embed. {}", title_summary))?;
 
     let Some(vectors) = embedding.result.data.first() else {
-        return Err(anyhow!("failed to get vectors. {}", summary));
+        return Err(anyhow!("failed to get vectors. {}", title_summary));
     };
 
     let mut map = HashMap::new();
     map.insert("page_id".to_string(), Value::from(page_id.clone()));
-    map.insert("document".to_string(), Value::from(summary.clone()));
+    map.insert("document".to_string(), Value::from(title_summary.clone()));
     map.insert(
         "type".to_string(),
         Value::from(serde_json::to_string(&DocumentType::Page).unwrap()),
@@ -553,7 +499,7 @@ async fn store_summary(
     qdrant
         .upsert_points(collection.clone(), None, points, None)
         .await
-        .context(format!("failed to upsert. {}", summary))?;
+        .context(format!("failed to upsert. {}", title_summary))?;
 
     Ok(())
 }
