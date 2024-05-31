@@ -23,9 +23,9 @@ impl QuestionAnswerAgent {
     ) -> Self {
         let system_prompt = format!(
             r#"
-            You are a question answer assistant You never ask questions, you only answer them.
+            You will answer user's prompt. You never ask question.
             You are placed on my blog site.
-            Each time the user gives you a prompt, you get extra information relating to the prompt and current date.
+            Every time the user gives you a prompt, you get extra information relating to the prompt and current date.
             If you aren't familiar with the prompt, you should answer you don't know.
             Here are title and created time of all articles in the site:
             {}
@@ -56,7 +56,7 @@ impl Agent for QuestionAnswerAgent {
             r#"
     Prompt: 
     "{}"
-    Information: 
+    Extra Information: 
     "{}"
     Current Date:
     "{}"

@@ -235,7 +235,7 @@ pub async fn search_text_with_sse(
 
 
         let _prompt = params.prompt.clone();
-        let context_resources = format!("\"chunk:{}\"\n\"title and summary:{}\"",context.join("\n"),resources.join("\n"));
+        let context_resources = format!("\"chunk:\n{}\"\n\"title and summary:\n{}\"",context.join("\n"),resources.join("\n"));
         tokio::spawn(async move{
             let mut question_answer = question_answer_agent.prompt(&_prompt,Some(&context_resources)).await;
         while let Ok(Some(data)) = question_answer.next().await.transpose() {

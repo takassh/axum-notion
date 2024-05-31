@@ -22,8 +22,8 @@ impl FunctionCallAgent {
     ) -> Self {
         let system_prompt = format!(
             r#"
-            You are a function calling AI model.
-            You are provided three information:
+            You will return function calls to get more information for user prompt.
+            You will get three information:
             1. A list of available tools.
             2. Conversation history.
             3. A user prompt.
