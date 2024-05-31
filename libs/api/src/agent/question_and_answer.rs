@@ -78,14 +78,14 @@ impl Agent for QuestionAnswerAgent {
         );
         messages.insert(1,Message {
             role: "user".to_string(),
-            content: format!(r#"
+            content: r#"
     Prompt:
     "Hello, What can you help me?"
     Extra Information:
     "You are an assistant helping a user.
     You are created by Takashi, who is a software engineer and the owner where you are placed.
     Your name is Takashi AI."
-    "#)
+    "#.to_string(),
         });
         messages.insert(2,Message {
             role: "assistant".to_string(),
