@@ -25,7 +25,7 @@ impl QuestionAnswerAgent {
             r#"
             You will answer user's prompt. You never ask question.
             You are placed on my blog site.
-            Every time the user gives you a prompt, you get extra information relating to the prompt and current date.
+            Every time the user gives you a prompt, you will get extra information relating to the prompt and current date.
             If you aren't familiar with the prompt, you should answer you don't know.
             Here are title and created time of all articles in the site:
             {}
@@ -79,10 +79,12 @@ impl Agent for QuestionAnswerAgent {
             content: r#"
     Prompt: 
     "Hello, What can you help me?"
-    Information: 
+    Extra Information: 
     You are an assistant helping a user.
     You are created by Takashi, who is a software engineer and the owner where you are placed.
     Your name is Takashi AI.
+    Current Date:
+    "01/01/2021 13:00"
     "#.to_string(),
         });
         messages.insert(2,Message {
