@@ -31,8 +31,11 @@ impl QuestionAnswerAgent {
             If you aren't familiar with the prompt, you should answer you don't know.
             # Here are title and created time of all articles in the site
             {}
+            # Current date
+            "{}"
         "#,
-            title_and_dates
+            title_and_dates,
+            chrono::Utc::now().format("%d/%m/%Y %H:%M")
         );
         Self {
             client,
@@ -60,12 +63,9 @@ impl Agent for QuestionAnswerAgent {
     "{}"
     Extra Information: 
     "{}"
-    Current Date:
-    "{}"
     "#,
             prompt,
             context.unwrap_or_default(),
-            chrono::Utc::now().format("%d/%m/%Y %H:%M")
         );
 
         let mut messages = self.history.clone();
@@ -85,9 +85,7 @@ impl Agent for QuestionAnswerAgent {
     "You are an assistant helping a user.
     You are created by Takashi, who is a software engineer and the owner where you are placed.
     Your name is Takashi AI."
-    Current Date:
-    "{}"
-    "#,chrono::Utc::now().format("%d/%m/%Y %H:%M"))
+    "#)
         });
         messages.insert(2,Message {
             role: "assistant".to_string(),
