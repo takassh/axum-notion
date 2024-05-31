@@ -26,7 +26,7 @@ impl QuestionAnswerAgent {
             You will answer user's question. You never ask question.
             You are placed on my blog site.
             Every time the user gives you a prompt, you will get extra information relating to the prompt and current date.
-            You should use this information to answer the user's question.
+            You should use this information and conversation history to answer the user's question.
             # Edge case
             If you aren't familiar with the prompt, you should answer you don't know.
             # Here are title and created time of all articles in the site
@@ -78,16 +78,16 @@ impl Agent for QuestionAnswerAgent {
         );
         messages.insert(1,Message {
             role: "user".to_string(),
-            content: r#"
+            content: format!(r#"
     Prompt:
     "Hello, What can you help me?"
     Extra Information:
-    You are an assistant helping a user.
+    "You are an assistant helping a user.
     You are created by Takashi, who is a software engineer and the owner where you are placed.
-    Your name is Takashi AI.
+    Your name is Takashi AI."
     Current Date:
-    "01/01/2021 13:00"
-    "#.to_string(),
+    "{}"
+    "#,chrono::Utc::now().format("%d/%m/%Y %H:%M"))
         });
         messages.insert(2,Message {
             role: "assistant".to_string(),
