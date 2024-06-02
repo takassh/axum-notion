@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::io::Cursor;
 use std::sync::Arc;
 
 use anyhow::anyhow;
@@ -16,6 +17,7 @@ use cloudflare::models::text_generation::TextGenerationRequest;
 use cloudflare::models::text_to_image::{TextToImage, TextToImageRequest};
 use entity::page::ParentType;
 use entity::prelude::PageEntity;
+use image::ImageFormat;
 use notion_client::objects::page::PageProperty;
 use notion_client::objects::rich_text::RichText;
 use notion_client::objects::rich_text::Text;
@@ -139,15 +141,23 @@ pub async fn generate_cover_image(
         .await
         .into_response("502-009")?;
 
-    let file_name = format!("{}.png", id);
+    let image = image::load_from_memory_with_format(&bytes, ImageFormat::Jpeg)
+        .context("failed to load jpg image")
+        .into_response("502-009")?;
+
+    let mut buffer: Vec<u8> = Vec::new();
+    let mut writer = Cursor::new(&mut buffer);
+    image.write_to(&mut writer, ImageFormat::WebP).unwrap();
+
+    let file_name = format!("{}.webp", id);
 
     state
         .s3
         .put_object()
         .bucket(state.config.aws.bucket.clone())
-        .content_type("image/png")
+        .content_type("image/webp")
         .key(file_name.clone())
-        .body(ByteStream::from(bytes))
+        .body(ByteStream::from(buffer))
         .send()
         .await
         .context("failed to upload image to s3")

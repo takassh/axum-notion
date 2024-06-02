@@ -42,3 +42,4 @@ async-stream = "0.3.5"
 redis = { version = "0.25.3", features = ["tls-native-tls"] }
 regex = "1.10.4"
 rpc-router = "0.1.3"
+image = "0.25.1"
