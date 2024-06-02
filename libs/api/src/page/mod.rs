@@ -158,7 +158,7 @@ pub async fn generate_cover_image(
         .s3
         .put_object()
         .bucket(state.config.aws.bucket.clone())
-        .content_type("image/webp")
+        .content_type("image/avif")
         .key(file_name.clone())
         .body(ByteStream::from(buffer))
         .send()
