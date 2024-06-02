@@ -147,9 +147,12 @@ pub async fn generate_cover_image(
 
     let mut buffer: Vec<u8> = Vec::new();
     let mut writer = Cursor::new(&mut buffer);
-    image.write_to(&mut writer, ImageFormat::WebP).unwrap();
+    image
+        .write_to(&mut writer, ImageFormat::Avif)
+        .context("failed to write avif image")
+        .into_response("502-009")?;
 
-    let file_name = format!("{}.webp", id);
+    let file_name = format!("{}.avif", id);
 
     state
         .s3
