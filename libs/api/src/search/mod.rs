@@ -128,8 +128,8 @@ pub async fn search_text_with_sse(
             Tool {
                 r#type: "function".to_string(),
                 function: Function {
-                    name: "find_article_by_word".to_string(),
-                    description: "Retrieve articles with titles containing a specified word. Feel free to call it when you search an article".to_string(),
+                    name: "get_article_by_word".to_string(),
+                    description: "Get an article with titles containing a specified word. Feel free to call it when you search an article".to_string(),
                     parameters: Some(
                         Parameters {
                             r#type: "object".to_string(),
@@ -216,7 +216,7 @@ pub async fn search_text_with_sse(
             };
 
             match method.as_str(){
-                "find_article_by_word" => {
+                "get_article_by_word" => {
                     let page = serde_json::from_value::<Option<entity::page::Page>>(value.clone());
                     let Ok(page) = page else{
                         error!(

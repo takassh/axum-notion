@@ -24,7 +24,7 @@ pub enum RpcError {
 pub fn serve(repository: Repository) -> Result<Router, RpcError> {
     // Build the Router with the handlers and common resources
     let rpc_router = router_builder!(
-        handlers: [find_article_by_word,get_current_datetime,get_articles_with_date,get_recommended_article_titles],         // will be turned into routes
+        handlers: [get_article_by_word,get_current_datetime,get_articles_with_date,get_recommended_article_titles],         // will be turned into routes
         resources: [RpcState {repo:repository}] // common resources for all calls
     )
     .build();
@@ -36,7 +36,7 @@ pub fn serve(repository: Repository) -> Result<Router, RpcError> {
 pub struct ParamsFindByWord {
     word: String,
 }
-pub async fn find_article_by_word(
+pub async fn get_article_by_word(
     state: RpcState,
     params: ParamsFindByWord,
 ) -> Result<Option<PageEntity>, RpcError> {
