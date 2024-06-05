@@ -148,17 +148,17 @@ pub async fn generate_cover_image(
     let mut buffer: Vec<u8> = Vec::new();
     let mut writer = Cursor::new(&mut buffer);
     image
-        .write_to(&mut writer, ImageFormat::Avif)
-        .context("failed to write avif image")
+        .write_to(&mut writer, ImageFormat::WebP)
+        .context("failed to write webp image")
         .into_response("502-009")?;
 
-    let file_name = format!("{}.avif", id);
+    let file_name = format!("{}.webp", id);
 
     state
         .s3
         .put_object()
         .bucket(state.config.aws.bucket.clone())
-        .content_type("image/avif")
+        .content_type("image/webp")
         .key(file_name.clone())
         .body(ByteStream::from(buffer))
         .send()
