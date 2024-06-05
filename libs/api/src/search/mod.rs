@@ -109,13 +109,18 @@ pub async fn search_text_with_sse(
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let stream = stream! {
         let result = retriever(&state, &params.prompt).await;
-        let Ok((vector_result,mut page_ids)) = result else {
+        let Ok((result,mut page_ids)) = result else {
             error!(
                 task = "get context by retriever",
                 error = result.unwrap_err().to_string(),
             );
             return;
         };
+
+        let mut vector_result = String::new();
+        if !result.is_empty(){
+            vector_result = format!("\"vector search result:{}\"",result.join("\n"))
+        }
 
         let title_and_dates = get_page_title_and_dates(&state).await;
         let Ok(title_and_dates) = title_and_dates else {
@@ -251,7 +256,7 @@ pub async fn search_text_with_sse(
 
 
         let _prompt = params.prompt.clone();
-        let context = format!("\"vector search result:{}\"\n{}",vector_result.join("\n"),function_result.join("\n"));
+        let context = format!("{}\n{}",vector_result,function_result.join("\n"));
         let _context = context.clone();
         tokio::spawn(async move{
             let mut question_answer = question_answer_agent.prompt(&_prompt,Some(&_context)).await;
