@@ -247,11 +247,11 @@ pub async fn search_text_with_sse(
                 "get_current_datetime" => {
                     function_result.push(format!("## Current datetime\n{}",value));
                 }
-                "get_all_articles" => {
+                "get_all_articles_with_date" => {
                     let titles_with_date = serde_json::from_value::<Vec<(String,String)>>(value.clone());
                     let Ok(titles_with_date) = titles_with_date else{
                         error!(
-                            task = "parse get_all_articles",
+                            task = "parse get_all_articles_with_date",
                             value = value.to_string(),
                             error = titles_with_date.unwrap_err().to_string(),
                         );
