@@ -241,11 +241,11 @@ pub async fn search_text_with_sse(
                         .collect::<Vec<_>>()
                         .join("");
 
-                        function_result.push(format!("Article title and summary:\n{}.\n{}",title,summary));
+                        function_result.push(format!("## Article title and summary\n{}.\n{}",title,summary));
                             page_ids.push(notion_page_id);
                 }
                 "get_current_datetime" => {
-                    function_result.push(format!("Current datetime:\n{}",value));
+                    function_result.push(format!("## Current datetime\n{}",value));
                 }
                 "get_all_article_titles" => {
                     let titles_with_date = serde_json::from_value::<Vec<(String,String)>>(value.clone());
@@ -258,7 +258,7 @@ pub async fn search_text_with_sse(
                         continue;
                     };
                     let result = titles_with_date.iter().map(|(title,date)|format!("{}. Created at {}",title,date)).collect::<Vec<_>>().join("\n");
-                    function_result.push(format!("All article titles:\n{}",result));
+                    function_result.push(format!("## All article titles\n{}",result));
                 }
                 _ => {}
             }

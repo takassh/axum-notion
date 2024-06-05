@@ -61,7 +61,7 @@ impl Agent for QuestionAnswerAgent {
         messages.push(Message {
             role: "user".to_string(),
             content: format!(
-                "# Prompt:\n{}\n# Context:\n{}",
+                "# Prompt\n{}\n# Context\n{}",
                 prompt,
                 context.unwrap_or_default(),
             )
