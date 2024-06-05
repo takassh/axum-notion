@@ -20,7 +20,7 @@ impl QuestionAnswerAgent {
         history: Vec<Message>,
     ) -> Self {
         let system_prompt = r#"
-            You will answer user's question based on Prompt and Context which user gives you. You are placed on takashi's blog site.
+            You will answer user's question based on Prompt and Context which user gives you. You are placed on takashi's blog site. Be concise and informative.
             # Edge case
             If you aren't familiar with the prompt, you should answer you don't know.
             # Who made you
