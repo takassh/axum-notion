@@ -160,7 +160,7 @@ pub async fn search_text_with_sse(
             Tool {
                 r#type: "function".to_string(),
                 function: Function {
-                    name: "get_all_articles".to_string(),
+                    name: "get_all_articles_with_date".to_string(),
                     description: "Get all articles with created time in this blog site.".to_string(),
                     parameters: Some(
                         Parameters {
