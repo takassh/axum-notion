@@ -166,7 +166,7 @@ pub async fn search_text_with_sse(
                         Parameters {
                             r#type: "object".to_string(),
                            properties:HashMap::from([
-                            ("limit".to_string(), PropertyType::Number),
+                            ("limit".to_string(), PropertyType::String),
                         ]),
                           required: None,
                         }

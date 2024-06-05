@@ -1,11 +1,10 @@
-use std::{collections::HashMap, pin::Pin};
+use std::pin::Pin;
 
 use cloudflare::models::text_generation::{
     Message, MessageRequest, TextGeneration, TextGenerationJsonResult,
     TextGenerationRequest,
 };
 use futures_util::Stream;
-use serde::{Deserialize, Serialize};
 
 use super::Agent;
 
@@ -21,15 +20,13 @@ impl QuestionAnswerAgent {
         history: Vec<Message>,
     ) -> Self {
         let system_prompt = r#"
-            You will answer user's question based on given context and conversation history.
-            You never ask question.
-            You are placed on takashi's blog site.
-            Edge case:
+            You will answer user's question. You are placed on takashi's blog site.
+            # Edge case
             If you aren't familiar with the prompt, you should answer you don't know.
-            Who made you:
+            # Who made you
             Takashi made you.
             Takashi is a software engineer and the owner of the site.
-            Your profile:
+            # Your profile
             Your name is takashi AI.
         "#.to_string();
         Self {
@@ -64,7 +61,7 @@ impl Agent for QuestionAnswerAgent {
         messages.push(Message {
             role: "user".to_string(),
             content: format!(
-                "Prompt:\n{}Context:\n{}",
+                "# Prompt:\n{}\n# Context:\n{}",
                 prompt,
                 context.unwrap_or_default(),
             )
@@ -81,36 +78,4 @@ impl Agent for QuestionAnswerAgent {
 
         Box::pin(stream)
     }
-}
-
-#[derive(Clone, Debug, Deserialize, Default)]
-pub struct ToolCall {
-    pub name: String,
-    pub arguments: HashMap<String, String>,
-}
-
-#[derive(Serialize, Default)]
-pub struct Tool {
-    pub r#type: String,
-    pub function: Function,
-}
-
-#[derive(Serialize, Default)]
-pub struct Function {
-    pub name: String,
-    pub description: String,
-    pub parameters: Option<Parameters>,
-}
-
-#[derive(Serialize, Default)]
-pub struct Parameters {
-    pub r#type: String,
-    pub properties: HashMap<String, PropertyType>,
-    pub required: Option<Vec<String>>,
-}
-
-#[derive(Serialize)]
-#[serde(tag = "type")]
-pub enum PropertyType {
-    String,
 }
