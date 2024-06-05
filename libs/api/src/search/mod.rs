@@ -119,7 +119,7 @@ pub async fn search_text_with_sse(
 
         let mut vector_result = String::new();
         if !result.is_empty(){
-            vector_result = format!("\"vector search result:\n{}\"",result.join("\n"))
+            vector_result = format!("vector search result:\n{}",result.join("\n"))
         }
 
         let function_call_agent = FunctionCallAgent::new(
@@ -225,11 +225,11 @@ pub async fn search_text_with_sse(
                         .collect::<Vec<_>>()
                         .join("");
 
-                        function_result.push(format!("\"title:\n{}\"\n\"summary:\n{}\"",title,summary));
+                        function_result.push(format!("title:\n{}\"\n\"summary:\n{}",title,summary));
                             page_ids.push(notion_page_id);
                 }
                 "get_current_datetime" => {
-                    function_result.push(format!("\"current datetime:\n{}\"",value));
+                    function_result.push(format!("current datetime:\n{}",value));
                 }
                 "get_all_titles_with_created_time" => {
                     let titles_with_date = serde_json::from_value::<Vec<(String,String)>>(value.clone());
@@ -242,7 +242,7 @@ pub async fn search_text_with_sse(
                         continue;
                     };
                     let result = titles_with_date.iter().map(|(title,date)|format!("{},{}",title,date)).collect::<Vec<_>>().join("\n");
-                    function_result.push(format!("\"all titles with created time:\n{}\"",result));
+                    function_result.push(format!("all titles with created time:\n{}",result));
                 }
                 _ => {}
             }
