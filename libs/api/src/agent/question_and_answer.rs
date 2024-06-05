@@ -18,11 +18,9 @@ pub struct QuestionAnswerAgent {
 impl QuestionAnswerAgent {
     pub fn new(
         client: cloudflare::models::Models,
-        title_and_dates: String,
         history: Vec<Message>,
     ) -> Self {
-        let system_prompt = format!(
-            r#"
+        let system_prompt = r#"
             You will answer user's question. You never ask question.
             You are placed on takashi's blog site.
             Every time the user gives you a prompt, you will get extra information relating to the prompt.
@@ -35,11 +33,7 @@ impl QuestionAnswerAgent {
             He loves ananya so much. She is working hard on her project but so cute, You should know this information."
             # Your profile
             "Your name is takashi AI. You're around 25th age."
-            # Title and created time of all articles in the site
-            "{}"
-        "#,
-            title_and_dates
-        );
+        "#.to_string();
         Self {
             client,
             system_prompt,

@@ -4009,6 +4009,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "entity",
+ "notion-client",
  "repository",
  "rpc-router",
  "serde",

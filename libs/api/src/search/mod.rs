@@ -122,18 +122,17 @@ pub async fn search_text_with_sse(
             vector_result = format!("\"vector search result:\n{}\"",result.join("\n"))
         }
 
-        let title_and_dates = get_page_title_and_dates(&state).await;
-        let Ok(title_and_dates) = title_and_dates else {
-            error!(
-                task = "get page title and dates",
-                error = title_and_dates.unwrap_err().to_string(),
-            );
-            return;
-        };
-
         let function_call_agent = FunctionCallAgent::new(
             state.cloudflare.clone(),
             vec![
+            Tool {
+                r#type: "function".to_string(),
+                function: Function {
+                    name: "get_all_titles_with_created_time".to_string(),
+                    description: "Get all titles with created time (RFC3339) in this blog site.".to_string(),
+                    parameters: None,
+                },
+            },
             Tool {
                 r#type: "function".to_string(),
                 function: Function {
@@ -154,7 +153,7 @@ pub async fn search_text_with_sse(
                 r#type: "function".to_string(),
                 function: Function {
                     name: "get_current_datetime".to_string(),
-                    description: "Get current datetime with utc and RFC3339 format".to_string(),
+                    description: "Get current datetime (RFC3339)".to_string(),
                     parameters: None,
                 },
             },
@@ -232,6 +231,19 @@ pub async fn search_text_with_sse(
                 "get_current_datetime" => {
                     function_result.push(format!("\"current datetime:\n{}\"",value));
                 }
+                "get_all_titles_with_created_time" => {
+                    let titles_with_date = serde_json::from_value::<Vec<(String,String)>>(value.clone());
+                    let Ok(titles_with_date) = titles_with_date else{
+                        error!(
+                            task = "parse titles with created time",
+                            value = value.to_string(),
+                            error = titles_with_date.unwrap_err().to_string(),
+                        );
+                        continue;
+                    };
+                    let result = titles_with_date.iter().map(|(title,date)|format!("{},{}",title,date)).collect::<Vec<_>>().join("\n");
+                    function_result.push(format!("\"all titles with created time:\n{}\"",result));
+                }
                 _ => {}
             }
         }
@@ -250,7 +262,6 @@ pub async fn search_text_with_sse(
 
         let question_answer_agent = QuestionAnswerAgent::new(
             state.cloudflare.clone(),
-            title_and_dates.iter().map(|(title,date)|format!("{},{}",title,date)).collect::<Vec<_>>().join("\n"),
             params.history.clone(),
             );
 
@@ -497,34 +508,4 @@ async fn save_prompt(
         .await?;
 
     Ok(prompt_session_id)
-}
-
-async fn get_page_title_and_dates(
-    state: &Arc<ApiState>,
-) -> anyhow::Result<Vec<(String, String)>> {
-    let pages = state.repo.page.find_all().await?;
-    Ok(pages
-        .iter()
-        .flat_map(|page| {
-            let page = serde_json::from_str::<Page>(&page.contents)?;
-            let title_and_date =
-                if let Some(PageProperty::Title { id: _, title }) =
-                    page.properties.get("title")
-                {
-                    let title = title
-                        .iter()
-                        .flat_map(|t| t.plain_text())
-                        .collect::<Vec<_>>()
-                        .join("");
-                    let date =
-                        page.created_time.format("%d/%m/%Y %H:%M").to_string();
-
-                    (title, date)
-                } else {
-                    return Err(anyhow::anyhow!("No title found"));
-                };
-
-            Ok(title_and_date)
-        })
-        .collect())
 }
