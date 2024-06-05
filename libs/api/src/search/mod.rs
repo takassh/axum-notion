@@ -128,14 +128,6 @@ pub async fn search_text_with_sse(
             Tool {
                 r#type: "function".to_string(),
                 function: Function {
-                    name: "get_all_titles_with_created_time".to_string(),
-                    description: "Get all titles with created time (RFC3339) in this blog site.".to_string(),
-                    parameters: None,
-                },
-            },
-            Tool {
-                r#type: "function".to_string(),
-                function: Function {
                     name: "find_article_by_word".to_string(),
                     description: "Retrieve articles with titles containing a specified word. The shorter the word, the more likely the result will be retrieved.".to_string(),
                     parameters: Some(
@@ -153,8 +145,32 @@ pub async fn search_text_with_sse(
                 r#type: "function".to_string(),
                 function: Function {
                     name: "get_current_datetime".to_string(),
-                    description: "Get current datetime (RFC3339)".to_string(),
-                    parameters: None,
+                    description: "Get current datetime".to_string(),
+                    parameters: Some(
+                        Parameters {
+                            r#type: "object".to_string(),
+                           properties:HashMap::from([
+                            ("timezone".to_string(), PropertyType::String),
+                        ]),
+                          required: None,
+                        }
+                    ),
+                },
+            },
+            Tool {
+                r#type: "function".to_string(),
+                function: Function {
+                    name: "get_all_article_titles".to_string(),
+                    description: "Get all article titles with created time in a blog site.".to_string(),
+                    parameters: Some(
+                        Parameters {
+                            r#type: "object".to_string(),
+                           properties:HashMap::from([
+                            ("limit".to_string(), PropertyType::Number),
+                        ]),
+                          required: None,
+                        }
+                    ),
                 },
             },
         ],
@@ -225,24 +241,24 @@ pub async fn search_text_with_sse(
                         .collect::<Vec<_>>()
                         .join("");
 
-                        function_result.push(format!("title:\n{}\"\n\"summary:\n{}",title,summary));
+                        function_result.push(format!("Article title and summary:\n{}.\n{}",title,summary));
                             page_ids.push(notion_page_id);
                 }
                 "get_current_datetime" => {
-                    function_result.push(format!("current datetime:\n{}",value));
+                    function_result.push(format!("Current datetime:\n{}",value));
                 }
-                "get_all_titles_with_created_time" => {
+                "get_all_article_titles" => {
                     let titles_with_date = serde_json::from_value::<Vec<(String,String)>>(value.clone());
                     let Ok(titles_with_date) = titles_with_date else{
                         error!(
-                            task = "parse titles with created time",
+                            task = "parse get_all_article_titles",
                             value = value.to_string(),
                             error = titles_with_date.unwrap_err().to_string(),
                         );
                         continue;
                     };
-                    let result = titles_with_date.iter().map(|(title,date)|format!("{},{}",title,date)).collect::<Vec<_>>().join("\n");
-                    function_result.push(format!("all titles with created time:\n{}",result));
+                    let result = titles_with_date.iter().map(|(title,date)|format!("{}. Created at {}",title,date)).collect::<Vec<_>>().join("\n");
+                    function_result.push(format!("All article titles:\n{}",result));
                 }
                 _ => {}
             }

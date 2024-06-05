@@ -145,7 +145,7 @@ impl Agent for FunctionCallAgent {
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct ToolCall {
     pub name: String,
-    pub arguments: Option<HashMap<String, String>>,
+    pub arguments: Option<HashMap<String, Option<String>>>,
 }
 
 #[derive(Serialize, Default)]
@@ -173,4 +173,5 @@ pub struct Parameters {
 #[serde(tag = "type")]
 pub enum PropertyType {
     String,
+    Number,
 }
