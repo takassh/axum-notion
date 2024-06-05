@@ -37,11 +37,8 @@ impl QuestionAnswerAgent {
             "Your name is takashi AI. You're around 25th age."
             # Title and created time of all articles in the site
             "{}"
-            # Current date
-            "{}"
         "#,
-            title_and_dates,
-            chrono::Utc::now().format("%d/%m/%Y %H:%M")
+            title_and_dates
         );
         Self {
             client,
