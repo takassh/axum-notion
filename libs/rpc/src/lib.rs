@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use entity::prelude::*;
 use repository::Repository;
 use rpc_router::{
@@ -19,7 +20,7 @@ pub enum RpcError {
 pub fn serve(repository: Repository) -> Result<Router, RpcError> {
     // Build the Router with the handlers and common resources
     let rpc_router = router_builder!(
-        handlers: [find_article_by_word],         // will be turned into routes
+        handlers: [find_article_by_word,get_current_datetime],         // will be turned into routes
         resources: [RpcState {repo:repository}] // common resources for all calls
     )
     .build();
@@ -41,4 +42,8 @@ pub async fn find_article_by_word(
         .find_by_word(&params.word)
         .await
         .map_err(RpcError::RepositoryError)
+}
+
+pub async fn get_current_datetime() -> Result<DateTime<Utc>, RpcError> {
+    Ok(chrono::Utc::now())
 }

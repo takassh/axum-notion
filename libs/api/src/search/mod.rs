@@ -109,7 +109,7 @@ pub async fn search_text_with_sse(
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let stream = stream! {
         let result = retriever(&state, &params.prompt).await;
-        let Ok((context,mut page_ids)) = result else {
+        let Ok((vector_result,mut page_ids)) = result else {
             error!(
                 task = "get context by retriever",
                 error = result.unwrap_err().to_string(),
@@ -145,6 +145,14 @@ pub async fn search_text_with_sse(
                     ),
                 },
             },
+            Tool {
+                r#type: "function".to_string(),
+                function: Function {
+                    name: "get_current_datetime".to_string(),
+                    description: "Get current datetime with utc and RFC3339 format".to_string(),
+                    parameters: None,
+                },
+            },
         ],
         params.history.clone(),
     );
@@ -159,11 +167,11 @@ pub async fn search_text_with_sse(
         };
 
 
-        let mut resources = vec![];
+        let mut function_result = vec![];
         for tool_call in tool_calls.clone(){
             let params = json!(&tool_call.arguments);
             let response = state.rpc.call_route(None,tool_call.name,Some(params)).await;
-            let Ok(CallResponse { id: _, method: _, value }) = response else{
+            let Ok(CallResponse { id: _, method, value }) = response else{
                 error!(
                     task = "call route",
                     error = response.unwrap_err().to_string(),
@@ -171,48 +179,56 @@ pub async fn search_text_with_sse(
                 continue;
             };
 
-            let page = serde_json::from_value::<Option<entity::page::Page>>(value.clone());
-            let Ok(page) = page else{
-                error!(
-                    task = "parse page",
-                    value = value.to_string(),
-                    error = page.unwrap_err().to_string(),
-                );
-                continue;
-            };
-            let Some(entity::page::Page{notion_page_id,updated_at:_,contents, notion_parent_id:_, parent_type:_, created_at:_, title, draft:_ }) = page else{
-                continue;
-            };
+            match method.as_str(){
+                "find_article_by_word" => {
+                    let page = serde_json::from_value::<Option<entity::page::Page>>(value.clone());
+                    let Ok(page) = page else{
+                        error!(
+                            task = "parse page",
+                            value = value.to_string(),
+                            error = page.unwrap_err().to_string(),
+                        );
+                        continue;
+                    };
+                    let Some(entity::page::Page{notion_page_id,updated_at:_,contents, notion_parent_id:_, parent_type:_, created_at:_, title, draft:_ }) = page else{
+                        continue;
+                    };
 
-            let page = serde_json::from_str::<Page>(&contents);
-            let Ok(page) = page else{
-                error!(
-                    task = "parse page",
-                    contents = contents,
-                    error = page.unwrap_err().to_string(),
-                );
-                continue;
-            };
+                    let page = serde_json::from_str::<Page>(&contents);
+                    let Ok(page) = page else{
+                        error!(
+                            task = "parse page",
+                            contents = contents,
+                            error = page.unwrap_err().to_string(),
+                        );
+                        continue;
+                    };
 
-    let Some(summary) = page.properties.get("summary") else {
-        continue;
-    };
-    let PageProperty::RichText { id: _, rich_text } = summary else {
-        error!(
-            task = "failed to get summary",
-            contents = contents,
-        );
-        continue;
-    };
+                    let Some(summary) = page.properties.get("summary") else {
+                        continue;
+                    };
+                    let PageProperty::RichText { id: _, rich_text } = summary else {
+                        error!(
+                            task = "failed to get summary",
+                            contents = contents,
+                        );
+                        continue;
+                    };
 
-    let summary = rich_text
-        .iter()
-        .flat_map(|t| t.plain_text())
-        .collect::<Vec<_>>()
-        .join("");
+                    let summary = rich_text
+                        .iter()
+                        .flat_map(|t| t.plain_text())
+                        .collect::<Vec<_>>()
+                        .join("");
 
-            resources.push(format!("\"title:{}\"\n\"summary:{}\"",title,summary));
-            page_ids.push(notion_page_id);
+                        function_result.push(format!("\"title:{}\"\n\"summary:{}\"",title,summary));
+                            page_ids.push(notion_page_id);
+                }
+                "get_current_datetime" => {
+                    function_result.push(format!("\"current datetime:{}\"",value));
+                }
+                _ => {}
+            }
         }
 
         let tool_calls = tool_calls.into_iter().map(|t|format!("function:{},arguments:{:?}",t.name,t.arguments)).collect::<Vec<_>>().join("\n");
@@ -221,7 +237,7 @@ pub async fn search_text_with_sse(
             prompt = &params.prompt,
             tool_calls = tool_calls,
             page_ids = &page_ids.join(","),
-            resources = &resources.join("\n"),
+            resources = &function_result.join("\n"),
         );
 
         let (message_tx, mut message_rx) = mpsc::channel(100);
@@ -235,9 +251,10 @@ pub async fn search_text_with_sse(
 
 
         let _prompt = params.prompt.clone();
-        let context_resources = format!("\"chunk:\n{}\"\n\"title and summary:\n{}\"",context.join("\n"),resources.join("\n"));
+        let context = format!("\"vector search result:{}\"\n{}",vector_result.join("\n"),function_result.join("\n"));
+        let _context = context.clone();
         tokio::spawn(async move{
-            let mut question_answer = question_answer_agent.prompt(&_prompt,Some(&context_resources)).await;
+            let mut question_answer = question_answer_agent.prompt(&_prompt,Some(&_context)).await;
         while let Ok(Some(data)) = question_answer.next().await.transpose() {
             for d in data{
                 let result = message_tx.send(d.response).await;
@@ -348,6 +365,17 @@ pub async fn search_text_with_sse(
                     };
 
                     yield event;
+
+                    let event =  Event::default().json_data(json!({"debug": {"context":&context}}));
+                    let Ok(event) = event else {
+                       error!(
+                           task = "event json_data debug",
+                           error = event.unwrap_err().to_string()
+                       );
+                       break;
+                    };
+                    yield event;
+
                     break;
                 }
             }

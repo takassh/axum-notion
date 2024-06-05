@@ -110,7 +110,7 @@ impl Agent for FunctionCallAgent {
         let response = self.call(messages).await?;
 
         info!(
-            "FunctionCallAgent response: {}, ptompt:{}",
+            "FunctionCallAgent response: {}, prompt:{}",
             response, prompt
         );
 
@@ -121,6 +121,15 @@ impl Agent for FunctionCallAgent {
         let re = regex::Regex::new(r"<tool_call>|</tool_call>").unwrap();
         let mut rpcs = vec![];
         for part in re.split(&response) {
+            let part = part.replace('\'', "\"");
+            let extra = regex::Regex::new(r"^.*?\{").unwrap();
+            let part: std::borrow::Cow<str> = extra.replace(&part, "{");
+            let extra = regex::Regex::new(r"\}[^\}]*?$").unwrap();
+            let part: std::borrow::Cow<str> = extra.replace(&part, "}");
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
             let result = serde_json::from_str(part);
             let Ok(result) = result else {
                 println!("Error parsing tool call: {:?}", result);
@@ -136,7 +145,7 @@ impl Agent for FunctionCallAgent {
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct ToolCall {
     pub name: String,
-    pub arguments: HashMap<String, String>,
+    pub arguments: Option<HashMap<String, String>>,
 }
 
 #[derive(Serialize, Default)]
@@ -149,6 +158,7 @@ pub struct Tool {
 pub struct Function {
     pub name: String,
     pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parameters: Option<Parameters>,
 }
 
