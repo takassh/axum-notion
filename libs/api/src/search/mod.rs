@@ -161,7 +161,7 @@ pub async fn search_text_with_sse(
                 r#type: "function".to_string(),
                 function: Function {
                     name: "get_all_article_titles".to_string(),
-                    description: "Get all article titles with created time in a blog site.".to_string(),
+                    description: "Get all article titles with created time in a blog site. You can use this for suggesting or browzing all articles.".to_string(),
                     parameters: Some(
                         Parameters {
                             r#type: "object".to_string(),
