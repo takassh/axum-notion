@@ -241,7 +241,7 @@ pub async fn search_text_with_sse(
                         .collect::<Vec<_>>()
                         .join("");
 
-                        function_result.push(format!("## Article title and summary\n{}.\n{}",title,summary));
+                        function_result.push(format!("## Article title and summary\n### title\n{}\n### summary\n{}",title,summary));
                             page_ids.push(notion_page_id);
                 }
                 "get_current_datetime" => {
