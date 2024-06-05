@@ -24,7 +24,7 @@ pub enum RpcError {
 pub fn serve(repository: Repository) -> Result<Router, RpcError> {
     // Build the Router with the handlers and common resources
     let rpc_router = router_builder!(
-        handlers: [find_article_by_word,get_current_datetime,get_all_article_titles],         // will be turned into routes
+        handlers: [find_article_by_word,get_current_datetime,get_all_articles],         // will be turned into routes
         resources: [RpcState {repo:repository}] // common resources for all calls
     )
     .build();
@@ -48,7 +48,7 @@ pub async fn find_article_by_word(
         .map_err(RpcError::RepositoryError)
 }
 
-pub async fn get_all_article_titles(
+pub async fn get_all_articles(
     state: RpcState,
 ) -> Result<Vec<(String, String)>, RpcError> {
     let pages = state.repo.page.find_all().await?;

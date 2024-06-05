@@ -160,8 +160,8 @@ pub async fn search_text_with_sse(
             Tool {
                 r#type: "function".to_string(),
                 function: Function {
-                    name: "get_all_article_titles".to_string(),
-                    description: "Get all article titles with created time in a blog site. You can use this for grasping all articles.".to_string(),
+                    name: "get_all_articles".to_string(),
+                    description: "Get all articles with created time in this blog site.".to_string(),
                     parameters: Some(
                         Parameters {
                             r#type: "object".to_string(),
@@ -247,17 +247,17 @@ pub async fn search_text_with_sse(
                 "get_current_datetime" => {
                     function_result.push(format!("## Current datetime\n{}",value));
                 }
-                "get_all_article_titles" => {
+                "get_all_articles" => {
                     let titles_with_date = serde_json::from_value::<Vec<(String,String)>>(value.clone());
                     let Ok(titles_with_date) = titles_with_date else{
                         error!(
-                            task = "parse get_all_article_titles",
+                            task = "parse get_all_articles",
                             value = value.to_string(),
                             error = titles_with_date.unwrap_err().to_string(),
                         );
                         continue;
                     };
-                    let result = titles_with_date.iter().map(|(title,date)|format!("{}, created at {}",title,date)).collect::<Vec<_>>().join("\n");
+                    let result = titles_with_date.iter().map(|(title,date)|format!("- {}, created at {}",title,date)).collect::<Vec<_>>().join("\n");
                     function_result.push(format!("## All article titles\n{}",result));
                 }
                 _ => {}
