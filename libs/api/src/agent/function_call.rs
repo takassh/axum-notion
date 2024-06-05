@@ -22,12 +22,12 @@ impl FunctionCallAgent {
     ) -> Self {
         let system_prompt = format!(
             r#"
-            You will return function calls to get more information for user prompt.
+            You will return function calls.
             You will get three information:
             1. A list of available tools.
             2. Conversation history.
             3. A user prompt.
-            Based on those 3 information, you must figure out context and generate function calls.
+            Based on those 3 information, you must generate function calls to get related information.
             Use the following pydantic model json schema to answer: {}
             For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows: <tool_call>{}</tool_call> Always your response must start with <tool_call>
             Available tools:

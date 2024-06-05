@@ -161,7 +161,23 @@ pub async fn search_text_with_sse(
                 r#type: "function".to_string(),
                 function: Function {
                     name: "get_articles_with_date".to_string(),
-                    description: "Get all articles with created time which this blog site has. Feel free to call it when you introduce articles.".to_string(),
+                    description: "Get all articles with created time. Feel free to call it when you introduce articles.".to_string(),
+                    parameters: Some(
+                        Parameters {
+                            r#type: "object".to_string(),
+                           properties:HashMap::from([
+                            ("limit".to_string(), PropertyType::String),
+                        ]),
+                          required: None,
+                        }
+                    ),
+                },
+            },
+            Tool {
+                r#type: "function".to_string(),
+                function: Function {
+                    name: "get_recommended_article_titles".to_string(),
+                    description: "Get recommended article titles.".to_string(),
                     parameters: Some(
                         Parameters {
                             r#type: "object".to_string(),
@@ -247,7 +263,7 @@ pub async fn search_text_with_sse(
                 "get_current_datetime" => {
                     function_result.push(format!("## Current datetime\n{}",value));
                 }
-                "get_articles_with_date" => {
+                "get_articles_with_date" | "get_recommended_article_titles" => {
                     let titles_with_date = serde_json::from_value::<Vec<(String,String)>>(value.clone());
                     let Ok(titles_with_date) = titles_with_date else{
                         error!(

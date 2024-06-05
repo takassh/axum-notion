@@ -24,7 +24,7 @@ pub enum RpcError {
 pub fn serve(repository: Repository) -> Result<Router, RpcError> {
     // Build the Router with the handlers and common resources
     let rpc_router = router_builder!(
-        handlers: [find_article_by_word,get_current_datetime,get_articles_with_date],         // will be turned into routes
+        handlers: [find_article_by_word,get_current_datetime,get_articles_with_date,get_recommended_article_titles],         // will be turned into routes
         resources: [RpcState {repo:repository}] // common resources for all calls
     )
     .build();
@@ -46,6 +46,38 @@ pub async fn find_article_by_word(
         .find_by_word(&params.word)
         .await
         .map_err(RpcError::RepositoryError)
+}
+
+pub async fn get_recommended_article_titles(
+    state: RpcState,
+) -> Result<Vec<(String, String)>, RpcError> {
+    let pages = state.repo.page.find_all().await?;
+    Ok(pages
+        .iter()
+        .flat_map(|page| {
+            let page = serde_json::from_str::<Page>(&page.contents)
+                .map_err(RpcError::SerdeJsonError)?;
+            let title_and_date =
+                if let Some(PageProperty::Title { id: _, title }) =
+                    page.properties.get("title")
+                {
+                    let title = title
+                        .iter()
+                        .flat_map(|t| t.plain_text())
+                        .collect::<Vec<_>>()
+                        .join("");
+                    let date = page.created_time.to_rfc3339();
+
+                    (title, date)
+                } else {
+                    return Err(RpcError::RepositoryError(anyhow!(
+                        "title not found in page properties"
+                    )));
+                };
+
+            Ok(title_and_date)
+        })
+        .collect())
 }
 
 pub async fn get_articles_with_date(
