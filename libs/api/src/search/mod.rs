@@ -119,7 +119,7 @@ pub async fn search_text_with_sse(
 
         let mut vector_result = String::new();
         if !result.is_empty(){
-            vector_result = format!("\"vector search result:{}\"",result.join("\n"))
+            vector_result = format!("\"vector search result:\n{}\"",result.join("\n"))
         }
 
         let title_and_dates = get_page_title_and_dates(&state).await;
@@ -226,11 +226,11 @@ pub async fn search_text_with_sse(
                         .collect::<Vec<_>>()
                         .join("");
 
-                        function_result.push(format!("\"title:{}\"\n\"summary:{}\"",title,summary));
+                        function_result.push(format!("\"title:\n{}\"\n\"summary:\n{}\"",title,summary));
                             page_ids.push(notion_page_id);
                 }
                 "get_current_datetime" => {
-                    function_result.push(format!("\"current datetime:{}\"",value));
+                    function_result.push(format!("\"current datetime:\n{}\"",value));
                 }
                 _ => {}
             }
