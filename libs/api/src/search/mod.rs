@@ -129,7 +129,7 @@ pub async fn search_text_with_sse(
                 r#type: "function".to_string(),
                 function: Function {
                     name: "find_article_by_word".to_string(),
-                    description: "Retrieve articles with titles containing a specified word. The shorter the word, the more likely the result will be retrieved.".to_string(),
+                    description: "Retrieve articles with titles containing a specified word. Feel free to call it when you search an article".to_string(),
                     parameters: Some(
                         Parameters {
                             r#type: "object".to_string(),
@@ -160,7 +160,7 @@ pub async fn search_text_with_sse(
             Tool {
                 r#type: "function".to_string(),
                 function: Function {
-                    name: "get_having_articles_with_date".to_string(),
+                    name: "get_articles_with_date".to_string(),
                     description: "Get all having articles with created time which this blog site has. Feel free to call it when you introduce articles.".to_string(),
                     parameters: Some(
                         Parameters {
@@ -247,11 +247,11 @@ pub async fn search_text_with_sse(
                 "get_current_datetime" => {
                     function_result.push(format!("## Current datetime\n{}",value));
                 }
-                "get_all_articles_with_date" => {
+                "get_articles_with_date" => {
                     let titles_with_date = serde_json::from_value::<Vec<(String,String)>>(value.clone());
                     let Ok(titles_with_date) = titles_with_date else{
                         error!(
-                            task = "parse get_all_articles_with_date",
+                            task = "parse get_articles_with_date",
                             value = value.to_string(),
                             error = titles_with_date.unwrap_err().to_string(),
                         );
