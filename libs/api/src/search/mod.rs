@@ -119,7 +119,7 @@ pub async fn search_text_with_sse(
 
         let mut vector_result = String::new();
         if !result.is_empty(){
-            vector_result = format!("vector search result:\n{}",result.join("\n"))
+            vector_result = format!("## Vector search result\n{}",result.join("\n"))
         }
 
         let function_call_agent = FunctionCallAgent::new(
@@ -161,7 +161,7 @@ pub async fn search_text_with_sse(
                 r#type: "function".to_string(),
                 function: Function {
                     name: "get_all_article_titles".to_string(),
-                    description: "Get all article titles with created time in a blog site. You can use this for suggesting or browzing all articles.".to_string(),
+                    description: "Get all article titles with created time in a blog site. You can use this for grasping all articles.".to_string(),
                     parameters: Some(
                         Parameters {
                             r#type: "object".to_string(),
@@ -257,7 +257,7 @@ pub async fn search_text_with_sse(
                         );
                         continue;
                     };
-                    let result = titles_with_date.iter().map(|(title,date)|format!("{}. Created at {}",title,date)).collect::<Vec<_>>().join("\n");
+                    let result = titles_with_date.iter().map(|(title,date)|format!("{}, created at {}",title,date)).collect::<Vec<_>>().join("\n");
                     function_result.push(format!("## All article titles\n{}",result));
                 }
                 _ => {}
