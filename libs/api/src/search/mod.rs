@@ -119,7 +119,7 @@ pub async fn search_text_with_sse(
 
         let mut vector_result = String::new();
         if !result.is_empty(){
-            vector_result = format!("## Vector search result\n{}",result.join("\n"))
+            vector_result = format!("## Vector search result\n{}",result.iter().map(|c|format!("1. {}",c)).collect::<Vec<_>>().join("\n"))
         }
 
         let function_call_agent = FunctionCallAgent::new(
