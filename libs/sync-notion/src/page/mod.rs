@@ -29,7 +29,7 @@ use tokio::{
     sync::mpsc::{self, Receiver, Sender},
     time::sleep,
 };
-use tracing::error;
+use tracing::{error, info};
 
 enum Message {
     Save { pages: Vec<Page> },
@@ -161,6 +161,8 @@ fn sender(
                     error = e.to_string(),
                 );
             }
+
+            info!(task = "scan all pages completed");
 
             sleep(Duration::from_secs(state.pause_secs)).await;
         }
