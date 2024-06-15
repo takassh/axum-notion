@@ -116,7 +116,7 @@ impl Agent for FunctionCallAgent {
         }
 
         let mut messages = vec![];
-        let assitant_messages: Vec<_> = self
+        let assistant_messages: Vec<_> = self
             .history
             .clone()
             .into_iter()
@@ -124,7 +124,7 @@ impl Agent for FunctionCallAgent {
             .collect();
         for (i, user_message) in user_messages.into_iter().enumerate() {
             messages.push(user_message);
-            messages.push(assitant_messages.get(i).unwrap().clone());
+            messages.push(assistant_messages.get(i).unwrap().clone());
         }
 
         messages.insert(

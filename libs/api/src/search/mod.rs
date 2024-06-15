@@ -333,7 +333,7 @@ pub async fn search_text_with_sse(
                         }
                     }
                 } else{
-                    // Finish asnwer
+                    // Finish answer
                     break;
                 }
             }
