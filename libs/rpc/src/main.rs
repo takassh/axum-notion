@@ -25,8 +25,8 @@ async fn main() -> anyhow::Result<()> {
     let repository = Repository::new(conn_string).await?;
 
     let cloudflare = cloudflare::models::Models::new(
-        &cloudflare_account_id,
-        &cloudflare_token,
+        cloudflare_account_id,
+        cloudflare_token,
     );
 
     let rpc_router = serve(
