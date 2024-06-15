@@ -92,7 +92,7 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let rpc = rpc::serve(
-        &config_name,
+        config_name,
         repository.clone(),
         qdrant_client::client::QdrantClient::from_url(
             config
