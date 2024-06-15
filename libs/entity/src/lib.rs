@@ -1,4 +1,5 @@
 pub mod block;
+pub mod document_type;
 pub mod event;
 pub mod notion_database;
 pub mod nudge;

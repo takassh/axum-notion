@@ -62,19 +62,6 @@ async fn main() -> anyhow::Result<()> {
 
     let config = load_config(config_name)?;
 
-    let qdrant = qdrant_client::client::QdrantClient::from_url(
-        config
-            .get("qdrant")
-            .unwrap()
-            .get("base_url")
-            .unwrap()
-            .as_str()
-            .unwrap(),
-    )
-    .with_api_key(secrets.get("QDRANT_API_KEY").unwrap().as_str().unwrap())
-    .build()
-    .unwrap();
-
     let repository = Repository::new(conn_string).await?.with_session(
         redis::Client::open(format!(
             "rediss://{}:{}@{}:{}",
@@ -104,12 +91,39 @@ async fn main() -> anyhow::Result<()> {
         .unwrap(),
     );
 
-    let rpc = rpc::serve(repository.clone())?;
+    let rpc = rpc::serve(
+        &config_name,
+        repository.clone(),
+        qdrant_client::client::QdrantClient::from_url(
+            config
+                .get("qdrant")
+                .unwrap()
+                .get("base_url")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+        )
+        .with_api_key(secrets.get("QDRANT_API_KEY").unwrap().as_str().unwrap())
+        .build()
+        .unwrap(),
+        cloudflare.clone(),
+    )?;
     let router = serve(
         repository,
         notion_client,
         rpc,
-        qdrant,
+        qdrant_client::client::QdrantClient::from_url(
+            config
+                .get("qdrant")
+                .unwrap()
+                .get("base_url")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+        )
+        .with_api_key(secrets.get("QDRANT_API_KEY").unwrap().as_str().unwrap())
+        .build()
+        .unwrap(),
         cloudflare,
         s3,
         bucket.to_string(),

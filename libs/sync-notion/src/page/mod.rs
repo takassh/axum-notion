@@ -1,4 +1,4 @@
-use crate::{DocumentType, State};
+use crate::State;
 use anyhow::{anyhow, Context};
 use cloudflare::models::text_embeddings::{
     TextEmbeddings, TextEmbeddingsRequest,
@@ -422,7 +422,7 @@ async fn delete_vectors(
                 },Condition{
                     condition_one_of:Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition{
                      key:"type".to_string(),
-                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(serde_json::to_string(&DocumentType::Page).unwrap()))}),
+                     r#match:Some(Match{match_value:Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(serde_json::to_string(&DocumentTypeEntity::Page).unwrap()))}),
                      ..Default::default()
                     }))
                  }],
@@ -470,6 +470,10 @@ async fn store_vectors(
         .collect::<Vec<_>>()
         .join("");
 
+    if summary.is_empty() {
+        return Ok(());
+    }
+
     let title_summary = format!("{}\n{}", title, summary);
 
     let embedding = cloudflare
@@ -488,7 +492,7 @@ async fn store_vectors(
     map.insert("document".to_string(), Value::from(title_summary.clone()));
     map.insert(
         "type".to_string(),
-        Value::from(serde_json::to_string(&DocumentType::Page).unwrap()),
+        Value::from(serde_json::to_string(&DocumentTypeEntity::Page).unwrap()),
     );
 
     let points = vec![PointStruct::new(

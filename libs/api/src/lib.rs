@@ -161,7 +161,6 @@ pub async fn serve(
 
     // search
     let search_router = Router::new()
-        .route("/", get(search::search_text))
         .route("/sse", post(search::search_text_with_sse))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

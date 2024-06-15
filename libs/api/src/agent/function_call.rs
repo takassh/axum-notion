@@ -12,6 +12,10 @@ use super::Agent;
 pub struct FunctionCallAgent {
     client: cloudflare::models::Models,
     system_prompt: String,
+    history: Vec<Message>,
+    pub temperature: Option<f32>, // from 0 to 5
+    pub top_p: Option<f32>,       // from 0 to 2
+    pub top_k: Option<f32>,       // from 1 to 50
 }
 
 impl FunctionCallAgent {
@@ -19,21 +23,18 @@ impl FunctionCallAgent {
         client: cloudflare::models::Models,
         available_tools: Vec<Tool>,
         history: Vec<Message>,
+        temperature: Option<f32>,
+        top_p: Option<f32>,
+        top_k: Option<f32>,
     ) -> Self {
         let system_prompt = format!(
-            r#"
-            You will return function calls.
-            You will get three information:
-            1. A list of available tools.
-            2. Conversation history.
-            3. A user prompt.
-            Based on those 3 information, you must generate function calls to get related information.
+            r#"# Instructions
+            You will answer function calls for search about user and other assistant's conversation.
+            Never forget your answer must be the calls. Only respond the calls.
             Use the following pydantic model json schema to answer: {}
-            For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows: <tool_call>{}</tool_call> Always your response must start with <tool_call>
-            Available tools:
+            For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows: <tool_call>{}</tool_call>
+            # Available tools
             <tools> {} </tools>
-            Conversation history:
-            {}
         "#,
             json!(
                 {
@@ -59,21 +60,14 @@ impl FunctionCallAgent {
                 }
             ),
             serde_json::to_string(&available_tools).unwrap(),
-            history
-                .iter()
-                .map(|x| {
-                    if x.role == "user" {
-                        format!("user:{}", x.content)
-                    } else {
-                        format!("response:{}", x.content)
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
         );
         Self {
             client,
             system_prompt,
+            history,
+            temperature,
+            top_p,
+            top_k,
         }
     }
 
@@ -83,6 +77,9 @@ impl FunctionCallAgent {
             .hermes_2_pro_mistral_7b(TextGenerationRequest::Message(
                 MessageRequest {
                     messages,
+                    temperature: self.temperature,
+                    top_p: self.top_p,
+                    top_k: self.top_k,
                     ..Default::default()
                 },
             ))
@@ -95,17 +92,61 @@ impl Agent for FunctionCallAgent {
     type Item = anyhow::Result<Vec<ToolCall>>;
 
     async fn prompt(self, prompt: &str, context: Option<&str>) -> Self::Item {
-        let _ = context;
-        let messages = vec![
+        let contexts: Vec<_> = self
+            .history
+            .clone()
+            .into_iter()
+            .filter(|m| m.role == "system")
+            .map(|m| m.content)
+            .collect();
+        let mut user_messages = vec![];
+        for (i, mut message) in self
+            .history
+            .clone()
+            .into_iter()
+            .filter(|m| m.role == "user")
+            .enumerate()
+        {
+            message.content = format!(
+                "#Context\n{}\n# Prompt\n{}",
+                contexts.get(i).unwrap_or(&"".to_string()),
+                message.content,
+            );
+            user_messages.push(message);
+        }
+
+        let mut messages = vec![];
+        let assitant_messages: Vec<_> = self
+            .history
+            .clone()
+            .into_iter()
+            .filter(|m| m.role == "assistant")
+            .collect();
+        for (i, user_message) in user_messages.into_iter().enumerate() {
+            messages.push(user_message);
+            messages.push(assitant_messages.get(i).unwrap().clone());
+        }
+
+        messages.insert(
+            0,
             Message {
                 role: "system".to_string(),
-                content: self.system_prompt.to_string(),
+                content: self.system_prompt.clone(),
             },
-            Message {
-                role: "user".to_string(),
-                content: prompt.to_string(),
-            },
-        ];
+        );
+        messages.push(Message {
+            role: "user".to_string(),
+            content: format!(
+                "# Context\n{}\n# Prompt\n{}",
+                context.unwrap_or_default(),
+                prompt
+            ),
+        });
+
+        let messages = messages
+            .into_iter()
+            .filter(|m| !m.content.is_empty())
+            .collect();
 
         let response = self.call(messages).await?;
 
@@ -121,24 +162,58 @@ impl Agent for FunctionCallAgent {
         let re = regex::Regex::new(r"<tool_call>|</tool_call>").unwrap();
         let mut rpcs = vec![];
         for part in re.split(&response) {
+            let part = part.trim().replace('\n', "");
+            if part.is_empty() {
+                continue;
+            }
             let part = part.replace('\'', "\"");
+            let mut part = part.replace('\\', "");
+            if part.find("name") < part.find("arguments") {
+                let start = regex::Regex::new(r".*\{.*?name").unwrap();
+                let end = regex::Regex::new(r"arguments.*}.*}").unwrap();
+                if !start.is_match(&part) {
+                    part.insert(0, '{');
+                }
+                if !end.is_match(&part) {
+                    part.push('}');
+                }
+            } else {
+                let start = regex::Regex::new(r".*\{.*?arguments").unwrap();
+                let end = regex::Regex::new(r"name.*}").unwrap();
+                if !start.is_match(&part) {
+                    part.insert(0, '{');
+                }
+                if !end.is_match(&part) {
+                    part.push('}');
+                }
+            }
             let extra = regex::Regex::new(r"^.*?\{").unwrap();
             let part: std::borrow::Cow<str> = extra.replace(&part, "{");
             let extra = regex::Regex::new(r"\}[^\}]*?$").unwrap();
             let part: std::borrow::Cow<str> = extra.replace(&part, "}");
-            let part = part.trim();
-            if part.is_empty() {
-                continue;
-            }
-            let result = serde_json::from_str(part);
+            let result = serde_json::from_str(&part);
             let Ok(result) = result else {
-                println!("Error parsing tool call: {:?}", result);
+                println!(
+                    "Error parsing tool call: {:?}, part: {}",
+                    result, part
+                );
                 continue;
             };
             rpcs.push(result);
         }
 
         Ok(rpcs)
+    }
+
+    async fn prompt_with_stream(
+        self,
+        prompt: &str,
+        context: Option<&str>,
+    ) -> std::pin::Pin<Box<dyn futures_util::Stream<Item = Self::Item> + Send>>
+    {
+        let _ = context;
+        let _ = prompt;
+        todo!();
     }
 }
 

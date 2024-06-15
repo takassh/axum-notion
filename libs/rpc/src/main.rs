@@ -7,12 +7,45 @@ use util::load_env;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let secrets = load_env()?;
+
+    let config_name =
+        &format!("Config{}", secrets.get("CONFIG").unwrap().as_str().unwrap());
     let conn_string =
         secrets.get("LOCAL_DATABASE_URL").unwrap().as_str().unwrap();
+    let cloudflare_token =
+        secrets.get("CLOUDFLARE_TOKEN").unwrap().as_str().unwrap();
+    let cloudflare_account_id = secrets
+        .get("CLOUDFLARE_ACCOUNT_ID")
+        .unwrap()
+        .as_str()
+        .unwrap();
+
+    let config = util::load_config(config_name)?;
 
     let repository = Repository::new(conn_string).await?;
 
-    let rpc_router = serve(repository)?;
+    let cloudflare = cloudflare::models::Models::new(
+        &cloudflare_account_id,
+        &cloudflare_token,
+    );
+
+    let rpc_router = serve(
+        config_name,
+        repository,
+        qdrant_client::client::QdrantClient::from_url(
+            config
+                .get("qdrant")
+                .unwrap()
+                .get("base_url")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+        )
+        .with_api_key(secrets.get("QDRANT_API_KEY").unwrap().as_str().unwrap())
+        .build()
+        .unwrap(),
+        cloudflare,
+    )?;
 
     // Create and parse rpc request example.
     let rpc_request: Request = json!({

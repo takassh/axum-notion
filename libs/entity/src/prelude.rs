@@ -1,4 +1,5 @@
 pub use super::block::Block as BlockEntity;
+pub use super::document_type::DocumentType as DocumentTypeEntity;
 pub use super::event::Event as EventEntity;
 pub use super::notion_database::NotionDatabase as NotionDatabaseEntity;
 pub use super::nudge::Nudge as NudgeEntity;

@@ -4008,8 +4008,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "cloudflare",
  "entity",
  "notion-client",
+ "qdrant-client",
  "repository",
  "rpc-router",
  "serde",

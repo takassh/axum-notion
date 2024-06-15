@@ -4,7 +4,7 @@ use futures_core::Stream;
 use reqwest::Body;
 use serde::{Deserialize, Serialize};
 
-static LLAMA_3_8B_INSTRUCT: &str = "@cf/meta/llama-3-8b-instruct";
+static LLAMA_3_8B_INSTRUCT: &str = "@cf/meta/llama-3-8b-instruct-awq";
 static HERMES_2_PRO_MISTRAL_7B: &str =
     "@hf/nousresearch/hermes-2-pro-mistral-7b";
 
@@ -52,6 +52,18 @@ pub struct MessageRequest {
     pub stream: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>, // from 0 to 5
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>, // from 0 to 2
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<f32>, // from 1 to 50
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repetition_penalty: Option<f32>, // from 0 to 2
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequency_penalty: Option<f32>, // from 0 to 2
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub presence_penalty: Option<f32>, // from 0 to 2
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]

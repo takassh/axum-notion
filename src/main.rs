@@ -34,8 +34,7 @@ async fn main(
 
     let admin_user = secret_store.get("ADMIN_USER").unwrap();
 
-    let config_name =
-        &format!("Config{}", secret_store.get("CONFIG").unwrap().as_str());
+    let config_name = &format!("Config{}", secret_store.get("CONFIG").unwrap());
     let config = util::load_config(config_name)?;
 
     let repository = Repository::new(&conn_string)
@@ -79,31 +78,6 @@ async fn main(
         &cloudflare_token,
     );
 
-    let qdrant1 = qdrant_client::client::QdrantClient::from_url(
-        config
-            .get("qdrant")
-            .unwrap()
-            .get("base_url")
-            .unwrap()
-            .as_str()
-            .unwrap(),
-    )
-    .with_api_key(secret_store.get("QDRANT_API_KEY").unwrap())
-    .build()
-    .unwrap();
-    let qdrant2 = qdrant_client::client::QdrantClient::from_url(
-        config
-            .get("qdrant")
-            .unwrap()
-            .get("base_url")
-            .unwrap()
-            .as_str()
-            .unwrap(),
-    )
-    .with_api_key(secret_store.get("QDRANT_API_KEY").unwrap())
-    .build()
-    .unwrap();
-
     let credentials =
         Credentials::new(access_key_id, secret_access_key, None, None, "");
     let cfg = aws_config::from_env()
@@ -121,15 +95,54 @@ async fn main(
             repository.clone(),
             notion_client.clone(),
             cloudflare.clone(),
-            qdrant1,
+            qdrant_client::client::QdrantClient::from_url(
+                config
+                    .get("qdrant")
+                    .unwrap()
+                    .get("base_url")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+            )
+            .with_api_key(secret_store.get("QDRANT_API_KEY").unwrap())
+            .build()
+            .unwrap(),
             config_name
         ),
         sync_github::serve(repository.clone(), config_name, &github_token),
         api::serve(
             repository.clone(),
             notion_client,
-            rpc::serve(repository).unwrap(),
-            qdrant2,
+            rpc::serve(
+                config_name,
+                repository,
+                qdrant_client::client::QdrantClient::from_url(
+                    config
+                        .get("qdrant")
+                        .unwrap()
+                        .get("base_url")
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                )
+                .with_api_key(secret_store.get("QDRANT_API_KEY").unwrap())
+                .build()
+                .unwrap(),
+                cloudflare.clone()
+            )
+            .unwrap(),
+            qdrant_client::client::QdrantClient::from_url(
+                config
+                    .get("qdrant")
+                    .unwrap()
+                    .get("base_url")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+            )
+            .with_api_key(secret_store.get("QDRANT_API_KEY").unwrap())
+            .build()
+            .unwrap(),
             cloudflare,
             s3,
             bucket,
