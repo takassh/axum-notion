@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::{
     sea_query, ActiveValue, DatabaseConnection, EntityTrait, IntoActiveValue,
-    Iterable, PaginatorTrait, QueryOrder,
+    Iterable, QueryOrder, QuerySelect,
 };
 
 use sea_orm::{ColumnTrait, QueryFilter};
@@ -48,15 +48,16 @@ impl From<EventEntity> for event::ActiveModel {
 }
 
 impl EventRepository {
-    pub async fn find_paginate(
+    pub async fn find(
         &self,
         offset: u64,
         limit: u64,
     ) -> anyhow::Result<Vec<EventEntity>> {
         let events = Event::find()
             .order_by_desc(event::Column::CreatedAt)
-            .paginate(&self.db, limit)
-            .fetch_page(offset)
+            .offset(offset)
+            .limit(limit)
+            .all(&self.db)
             .await?;
 
         Ok(events.into_iter().map(EventEntity::from).collect())

@@ -2,7 +2,7 @@ use chrono::{TimeZone, Utc};
 use entity::page::ParentType;
 use sea_orm::{
     sea_query, ActiveValue, DatabaseConnection, EntityTrait, Iterable,
-    PaginatorTrait, QueryFilter, QueryOrder,
+    QueryFilter, QueryOrder, QuerySelect,
 };
 
 use sea_orm::ColumnTrait;
@@ -56,7 +56,7 @@ impl From<PageEntity> for page::ActiveModel {
 }
 
 impl PageRepository {
-    pub async fn find_paginate(
+    pub async fn find(
         &self,
         offset: u64,
         limit: u64,
@@ -79,7 +79,7 @@ impl PageRepository {
                 .filter(page::Column::ParentType.eq(String::from(parent_type)));
         }
 
-        let pages = query.paginate(&self.db, limit).fetch_page(offset).await?;
+        let pages = query.limit(limit).offset(offset).all(&self.db).await?;
 
         Ok(pages.into_iter().map(PageEntity::from).collect())
     }

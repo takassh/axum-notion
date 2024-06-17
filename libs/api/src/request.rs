@@ -9,5 +9,5 @@ pub struct Pagination {
     #[serde_as(as = "DisplayFromStr")]
     pub limit: u64,
     #[serde_as(as = "DisplayFromStr")]
-    pub page: u64,
+    pub offset: u64,
 }

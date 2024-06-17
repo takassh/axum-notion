@@ -20,7 +20,7 @@ pub async fn get_events(
 ) -> ApiResponse<Json<GetEventsResp>> {
     let events = repo
         .event
-        .find_paginate(params.pagination.page, params.pagination.limit)
+        .find(params.pagination.offset, params.pagination.limit)
         .await
         .into_response("502-005")?;
 

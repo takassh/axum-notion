@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use anyhow::anyhow;
+use anyhow::Context;
 use chrono::{DateTime, Utc};
 use cloudflare::models::text_embeddings::{
     StringOrArray, TextEmbeddings, TextEmbeddingsRequest,
 };
 use entity::prelude::*;
-use notion_client::objects::page::{Page, PageProperty};
 use qdrant_client::{
     client::QdrantClient,
     qdrant::{
@@ -43,8 +42,8 @@ pub struct Qdrant {
 
 #[derive(Debug, thiserror::Error, RpcHandlerError)]
 pub enum RpcError {
-    #[error("repository error: {0}")]
-    RepositoryError(#[from] anyhow::Error),
+    #[error("error: {0}")]
+    Error(#[from] anyhow::Error),
     #[error("serde json error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
 }
@@ -59,7 +58,7 @@ pub fn serve(
 
     // Build the Router with the handlers and common resources
     let rpc_router = router_builder!(
-        handlers: [get_article_summary,get_article_detail,get_current_datetime,get_article_titles_with_date],         // will be turned into routes
+        handlers: [get_article_summary,get_article_detail,get_current_datetime,get_article_title_list],         // will be turned into routes
         resources: [RpcState {config:Config{qdrant:Qdrant {
             collection: config["qdrant"]["collection"]
                 .as_str()
@@ -96,12 +95,7 @@ pub async fn get_article_summary(
             continue;
         };
 
-        page = state
-            .repo
-            .page
-            .find_by_id(page_id)
-            .await
-            .map_err(RpcError::RepositoryError)?;
+        page = state.repo.page.find_by_id(page_id).await?;
 
         if page.is_some() {
             break;
@@ -135,12 +129,7 @@ pub async fn get_article_detail(
             continue;
         };
 
-        block = state
-            .repo
-            .block
-            .find_by_notion_page_id(page_id)
-            .await
-            .map_err(RpcError::RepositoryError)?;
+        block = state.repo.block.find_by_notion_page_id(page_id).await?;
 
         if block.is_some() {
             break;
@@ -148,6 +137,25 @@ pub async fn get_article_detail(
     }
 
     Ok(block)
+}
+
+#[derive(Serialize, Deserialize, RpcParams)]
+pub struct ParamsGetArticleList {
+    limit: String,
+    offset: String,
+}
+pub async fn get_article_title_list(
+    state: RpcState,
+    params: ParamsGetArticleList,
+) -> Result<Vec<PageEntity>, RpcError> {
+    let offset = params.offset.parse::<u64>().context("parse error")?;
+    let limit = params.limit.parse::<u64>().context("parse error")?;
+
+    Ok(state.repo.page.find(offset, limit, None, None).await?)
+}
+
+pub async fn get_current_datetime() -> Result<DateTime<Utc>, RpcError> {
+    Ok(chrono::Utc::now())
 }
 
 async fn retrieve_from_vector_db(
@@ -202,40 +210,4 @@ async fn retrieve_from_vector_db(
         .await?;
 
     Ok(search_result.result)
-}
-
-pub async fn get_article_titles_with_date(
-    state: RpcState,
-) -> Result<Vec<(String, String)>, RpcError> {
-    let pages = state.repo.page.find_paginate(0, 10, None, None).await?;
-    Ok(pages
-        .iter()
-        .flat_map(|page| {
-            let page = serde_json::from_str::<Page>(&page.contents)
-                .map_err(RpcError::SerdeJsonError)?;
-            let title_and_date =
-                if let Some(PageProperty::Title { id: _, title }) =
-                    page.properties.get("title")
-                {
-                    let title = title
-                        .iter()
-                        .flat_map(|t| t.plain_text())
-                        .collect::<Vec<_>>()
-                        .join("");
-                    let date = page.created_time.to_rfc3339();
-
-                    (title, date)
-                } else {
-                    return Err(RpcError::RepositoryError(anyhow!(
-                        "title not found in page properties"
-                    )));
-                };
-
-            Ok(title_and_date)
-        })
-        .collect())
-}
-
-pub async fn get_current_datetime() -> Result<DateTime<Utc>, RpcError> {
-    Ok(chrono::Utc::now())
 }

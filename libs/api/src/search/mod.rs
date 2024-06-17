@@ -1,5 +1,4 @@
 use crate::agent::{question_and_answer::QuestionAnswerAgent, Agent};
-use anyhow::anyhow;
 use async_stream::stream;
 use axum::{
     extract::State,
@@ -46,35 +45,22 @@ pub async fn search_text_with_sse(
     State(state): State<Arc<ApiState>>,
     Json(params): Json<SearchParam>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let titles_with_date = get_recent_titles_with_date(&state).await;
     let stream = stream! {
-        let Ok(titles_with_date) = titles_with_date else{
-            error!(
-                task = "get recent titles with date",
-                error = titles_with_date.unwrap_err().to_string(),
-            );
-            return;
-        };
-
-        let titles_with_date = titles_with_date.iter().map(|(title,date)|format!("- {}, created at {}",title,date)).collect::<Vec<_>>().join("\n");
-        let titles_with_date_context =format!("## Article titles sorted by date\n{}",titles_with_date);
 
         let keyword_generator = QuestionAnswerAgent::new(
             state.cloudflare.clone(),
-            format!(r#"# Instructions
+            r#"# Instructions
             You will answer keywords to search about user and other assistant's conversation.
             Your answer is the keywords with comma separated.
             Never forget your answer must be the keywords. Only respond the keywords.
             Answer variety words.
             You're placed on blog site.
-            # Recent articles
-            {}
-            "#,titles_with_date_context),
+            "#.to_string(),
             params.history.clone(),
             Some(20),
             );
 
-            let keyword = keyword_generator.prompt(&format!("{}\nOnly answer the keywords",&params.prompt),None).await;
+            let keyword = keyword_generator.prompt(&format!("{}\nkeywords:",&params.prompt),None).await;
             let Ok(keyword) = keyword else {
                 error!(
                     task = "keyword",
@@ -129,6 +115,23 @@ pub async fn search_text_with_sse(
                             r#type: "object".to_string(),
                            properties:HashMap::from([
                             ("timezone".to_string(), PropertyType::String),
+                        ]),
+                          required: None,
+                        }
+                    ),
+                },
+            },
+            Tool {
+                r#type: "function".to_string(),
+                function: Function {
+                    name: "get_article_title_list".to_string(),
+                    description: "Get article title list with created time.".to_string(),
+                    parameters: Some(
+                        Parameters {
+                            r#type: "object".to_string(),
+                           properties:HashMap::from([
+                            ("offset".to_string(), PropertyType::String),
+                            ("limit".to_string(), PropertyType::String),
                         ]),
                           required: None,
                         }
@@ -276,6 +279,25 @@ pub async fn search_text_with_sse(
 
                     function_result.push(format!("## Article detail search results with {}\n### full texts\n{}",params.get("query").unwrap(),plain_text));
                     page_ids.push(notion_page_id);
+                },
+                "get_article_title_list" => {
+                    let pages = serde_json::from_value::<Vec<entity::page::Page>>(value.clone());
+                    let Ok(pages) = pages else{
+                        error!(
+                            task = "parse pages entity",
+                            value = value.to_string(),
+                            error = pages.unwrap_err().to_string(),
+                        );
+                        continue;
+                    };
+
+                    let mut titles_with_created_at = vec![];
+                    for page in pages{
+                        let title = page.title;
+                        let created_at = page.created_at;
+                        titles_with_created_at.push(format!("- {}, created at {}",title,created_at.to_rfc3339()));
+                    }
+                    function_result.push(format!("## Article title list with offset = {}, limit = {}\n{}",params.get("offset").unwrap(),params.get("limit").unwrap(),titles_with_created_at.join("\n")));
                 }
                 _ => {}
             }
@@ -295,14 +317,12 @@ pub async fn search_text_with_sse(
 
         let question_answer_agent = QuestionAnswerAgent::new(
             state.cloudflare.clone(),
-            format!(r#"# Instructions
-            You will answer user's prompt. Never lie. Ask for more information if you need.
+            r#"# Instructions
+            You will answer user's prompt. Never lie. Ask for more information if you need. Answer "I don't know", if you are not given enough information.
             You can use given resources if needed.
             When you use knowledge other than given context, you should say it explicitly.
             Takashi made you. He is a software engineer and the owner of the site. You are placed on his blog site.
-            Your name is takashi AI. Be concise and informative.
-            # Recent articles
-            {}"#,titles_with_date_context),
+            Your name is takashi AI. Be concise and informative."#.to_string(),
             params.history.clone(),
             None,
             );
@@ -582,33 +602,4 @@ async fn retriever(
     );
 
     Ok((context, page_ids))
-}
-
-async fn get_recent_titles_with_date(
-    state: &Arc<ApiState>,
-) -> anyhow::Result<Vec<(String, String)>> {
-    let pages = state.repo.page.find_paginate(0, 10, None, None).await?;
-    Ok(pages
-        .iter()
-        .flat_map(|page| {
-            let page = serde_json::from_str::<Page>(&page.contents)?;
-            let title_and_date =
-                if let Some(PageProperty::Title { id: _, title }) =
-                    page.properties.get("title")
-                {
-                    let title = title
-                        .iter()
-                        .flat_map(|t| t.plain_text())
-                        .collect::<Vec<_>>()
-                        .join("");
-                    let date = page.created_time.to_rfc3339();
-
-                    (title, date)
-                } else {
-                    return Err(anyhow!("title not found in page properties"));
-                };
-
-            Ok(title_and_date)
-        })
-        .collect())
 }

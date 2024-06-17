@@ -61,8 +61,8 @@ pub async fn get_pages(
     let pages = state
         .repo
         .page
-        .find_paginate(
-            params.pagination.page,
+        .find(
+            params.pagination.offset,
             params.pagination.limit,
             params.category,
             Some(ParentType::Database),
