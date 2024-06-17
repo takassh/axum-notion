@@ -2,6 +2,7 @@ workspace = { members = [
     "libs/api",
     "libs/cloudflare",
     "libs/entity",
+    "libs/langfuse",
     "libs/repository",
     "libs/rpc",
     "libs/sync-github",
@@ -27,6 +28,7 @@ sync-notion = { path = "./libs/sync-notion" }
 sync-github = { path = "./libs/sync-github" }
 repository = { path = "./libs/repository" }
 cloudflare = { path = "./libs/cloudflare" }
+langfuse = { path = "./libs/langfuse" }
 rpc = { path = "./libs/rpc" }
 util = { path = "./libs/util" }
 toml = "0.8.12"

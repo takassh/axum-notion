@@ -3,6 +3,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 use anyhow::Context;
 use api::serve;
 use aws_sdk_s3::config::Credentials;
+use langfuse::apis::configuration;
 use repository::Repository;
 use tokio::net::TcpListener;
 use toml::{map::Map, Value};
@@ -109,9 +110,12 @@ async fn main() -> anyhow::Result<()> {
         cloudflare.clone(),
     )?;
     let router = serve(
+        secrets.get("ENV").unwrap().as_str().unwrap().to_string(),
         repository,
         notion_client,
         rpc,
+        cloudflare,
+        s3,
         qdrant_client::client::QdrantClient::from_url(
             config
                 .get("qdrant")
@@ -124,8 +128,33 @@ async fn main() -> anyhow::Result<()> {
         .with_api_key(secrets.get("QDRANT_API_KEY").unwrap().as_str().unwrap())
         .build()
         .unwrap(),
-        cloudflare,
-        s3,
+        configuration::Configuration {
+            base_path: config
+                .get("langfuse")
+                .unwrap()
+                .get("base_url")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+            basic_auth: Some((
+                secrets
+                    .get("LANGFUSE_PUBLIC_KEY")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+                Some(
+                    secrets
+                        .get("LANGFUSE_SECRET_KEY")
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                        .to_string(),
+                ),
+            )),
+            ..Default::default()
+        },
         bucket.to_string(),
         config_name,
         admin_user.to_string(),

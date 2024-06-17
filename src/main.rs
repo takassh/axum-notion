@@ -2,6 +2,7 @@ use std::process::id;
 
 use anyhow::Context;
 use aws_sdk_s3::config::Credentials;
+use langfuse::apis::configuration;
 use repository::Repository;
 use shuttle_persist::PersistInstance;
 use shuttle_runtime::{SecretStore, Secrets};
@@ -111,6 +112,7 @@ async fn main(
         ),
         sync_github::serve(repository.clone(), config_name, &github_token),
         api::serve(
+            secret_store.get("ENV").unwrap(),
             repository.clone(),
             notion_client,
             rpc::serve(
@@ -131,6 +133,8 @@ async fn main(
                 cloudflare.clone()
             )
             .unwrap(),
+            cloudflare,
+            s3,
             qdrant_client::client::QdrantClient::from_url(
                 config
                     .get("qdrant")
@@ -143,8 +147,21 @@ async fn main(
             .with_api_key(secret_store.get("QDRANT_API_KEY").unwrap())
             .build()
             .unwrap(),
-            cloudflare,
-            s3,
+            configuration::Configuration {
+                base_path: config
+                    .get("langfuse")
+                    .unwrap()
+                    .get("base_url")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+                basic_auth: Some((
+                    secret_store.get("LANGFUSE_PUBLIC_KEY").unwrap(),
+                    Some(secret_store.get("LANGFUSE_SECRET_KEY").unwrap(),),
+                )),
+                ..Default::default()
+            },
             bucket,
             config_name,
             admin_user,

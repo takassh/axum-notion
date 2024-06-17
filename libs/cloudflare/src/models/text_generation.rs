@@ -1,11 +1,13 @@
 pub mod implementation;
 
+use std::collections::HashMap;
+
 use futures_core::Stream;
 use reqwest::Body;
 use serde::{Deserialize, Serialize};
 
-static LLAMA_3_8B_INSTRUCT: &str = "@cf/meta/llama-3-8b-instruct-awq";
-static HERMES_2_PRO_MISTRAL_7B: &str =
+pub static LLAMA_3_8B_INSTRUCT: &str = "@cf/meta/llama-3-8b-instruct-awq";
+pub static HERMES_2_PRO_MISTRAL_7B: &str =
     "@hf/nousresearch/hermes-2-pro-mistral-7b";
 
 pub trait TextGeneration {
@@ -72,14 +74,49 @@ pub struct Message {
     pub content: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TextGenerationResponse {
     pub result: TextGenerationJsonResult,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TextGenerationJsonResult {
-    pub response: String,
+    pub response: Option<String>,
+    pub tool_calls: Option<Vec<ToolCall>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct ToolCall {
+    pub name: String,
+    pub arguments: Option<HashMap<String, Option<String>>>,
+}
+
+#[derive(Serialize, Default)]
+pub struct Tool {
+    pub r#type: String,
+    pub function: Function,
+}
+
+#[derive(Serialize, Default)]
+pub struct Function {
+    pub name: String,
+    pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parameters: Option<Parameters>,
+}
+
+#[derive(Serialize, Default)]
+pub struct Parameters {
+    pub r#type: String,
+    pub properties: HashMap<String, PropertyType>,
+    pub required: Option<Vec<String>>,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type")]
+pub enum PropertyType {
+    String,
+    Number,
 }
 
 impl From<TextGenerationRequest> for Body {

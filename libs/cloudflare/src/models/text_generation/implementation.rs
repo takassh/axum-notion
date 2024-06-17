@@ -1,4 +1,3 @@
-use anyhow::Context;
 use async_stream::stream;
 use futures_core::Stream;
 
@@ -16,8 +15,7 @@ impl TextGeneration for Models {
     ) -> anyhow::Result<super::TextGenerationResponse> {
         let text = self.string_response(request, LLAMA_3_8B_INSTRUCT).await?;
 
-        let response =
-            serde_json::from_str(&text).context("failed to parse response")?;
+        let response = serde_json::from_str(&text)?;
 
         Ok(response)
     }
@@ -44,8 +42,7 @@ impl TextGeneration for Models {
             .string_response(request, HERMES_2_PRO_MISTRAL_7B)
             .await?;
 
-        let response =
-            serde_json::from_str(&text).context("failed to parse response")?;
+        let response = serde_json::from_str(&text)?;
 
         Ok(response)
     }

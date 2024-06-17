@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use axum::{middleware, routing::get, routing::post, Router};
 
+use langfuse::apis::configuration::Configuration;
 use qdrant_client::client::QdrantClient;
 use repository::Repository;
 use rpc_router::Router as RPCRouter;
@@ -41,12 +42,14 @@ pub enum ApiError {
 }
 
 pub struct ApiState {
+    env: String,
     repo: Repository,
     notion: notion_client::endpoints::Client,
     rpc: RPCRouter,
     cloudflare: cloudflare::models::Models,
     s3: aws_sdk_s3::Client,
     qdrant: QdrantClient,
+    langfuse: Configuration,
     config: Config,
 }
 
@@ -69,12 +72,14 @@ static JWKS_URL: OnceCell<String> = OnceCell::const_new();
 
 #[allow(clippy::too_many_arguments)]
 pub async fn serve(
+    env: String,
     repository: Repository,
     notion_client: notion_client::endpoints::Client,
     rpc: RPCRouter,
-    qdrant: QdrantClient,
     cloudflare: cloudflare::models::Models,
     s3: aws_sdk_s3::Client,
+    qdrant: QdrantClient,
+    langfuse: Configuration,
     bucket: String,
     config_name: &str,
     admin_user: String,
@@ -98,12 +103,14 @@ pub async fn serve(
         .unwrap();
 
     let state = Arc::new(ApiState {
+        env,
         repo: repository.clone(),
         notion: notion_client,
         rpc,
         cloudflare,
         s3,
         qdrant,
+        langfuse,
         config: Config {
             aws: AWS {
                 bucket,

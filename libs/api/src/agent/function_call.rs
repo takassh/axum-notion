@@ -1,16 +1,17 @@
-use std::collections::HashMap;
-
 use cloudflare::models::text_generation::{
-    Message, MessageRequest, TextGeneration, TextGenerationRequest,
+    Message, MessageRequest, TextGeneration, TextGenerationJsonResult,
+    TextGenerationRequest, Tool, HERMES_2_PRO_MISTRAL_7B,
 };
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use langfuse::{apis::configuration, models::CreateGenerationBody};
+use regex::Regex;
 use tracing::info;
+use uuid::Uuid;
 
-use super::Agent;
+use super::{get_template, Agent};
 
 pub struct FunctionCallAgent {
     client: cloudflare::models::Models,
+    name: String,
     system_prompt: String,
     history: Vec<Message>,
     pub temperature: Option<f32>, // from 0 to 5
@@ -19,59 +20,72 @@ pub struct FunctionCallAgent {
 }
 
 impl FunctionCallAgent {
-    pub fn new(
+    #[allow(clippy::too_many_arguments)]
+    pub async fn new(
         client: cloudflare::models::Models,
+        configuration: &configuration::Configuration,
+        name: String,
         available_tools: Vec<Tool>,
         history: Vec<Message>,
         temperature: Option<f32>,
         top_p: Option<f32>,
         top_k: Option<f32>,
-    ) -> Self {
-        let system_prompt = format!(
-            r#"# Instructions
-            You will answer function calls for search about user and other assistant's conversation.
-            Never forget your answer must be the calls. Only respond the calls.
-            Use the following pydantic model json schema to answer: {}
-            For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows: <tool_call>{}</tool_call>
-            # Available tools
-            <tools> {} </tools>
-        "#,
-            json!(
-                {
-                    "title": "FunctionCall",
-                    "type": "object",
-                    "properties": {
-                        "arguments": {
-                            "title": "Arguments",
-                            "type": "object"
+    ) -> anyhow::Result<Self> {
+        let mut system_prompt =
+            get_template(configuration, "function-calls-system").await?;
+
+        let re = Regex::new(r"\s+").unwrap();
+        system_prompt = system_prompt.replace(
+            "{{schema}}",
+            &re.replace_all(
+                "{
+                    'title': 'FunctionCall',
+                    'type': 'object',
+                    'properties': {
+                        'arguments': {
+                            'title': 'Arguments',
+                            'type': 'object'
                         },
-                        "name": {
-                            "title": "Name",
-                            "type": "string"
+                        'name': {
+                            'title': 'Name',
+                            'type': 'string'
                         }
                     },
-                    "required": ["arguments", "name"]
-                }
+                    'required': ['arguments', 'name']
+                }",
+                "",
             ),
-            json!(
-                {
-                    "arguments": "<args-dict>",
-                    "name": "function-name"
-                }
-            ),
-            serde_json::to_string(&available_tools).unwrap(),
         );
-        Self {
+        system_prompt = system_prompt.replace(
+            "{{tool_call_response}}",
+            &re.replace_all(
+                "{
+                    'arguments': '<args-dict>',
+                    'name': 'function-name'
+                }",
+                "",
+            ),
+        );
+        system_prompt = system_prompt.replace(
+            "{{tools}}",
+            &serde_json::to_string(&available_tools)?.replace('"', "'"),
+        );
+
+        Ok(Self {
             client,
+            name,
             system_prompt,
             history,
             temperature,
             top_p,
             top_k,
-        }
+        })
     }
 
-    async fn call(&self, messages: Vec<Message>) -> anyhow::Result<String> {
+    async fn call(
+        &self,
+        messages: Vec<Message>,
+    ) -> anyhow::Result<TextGenerationJsonResult> {
         let response = self
             .client
             .hermes_2_pro_mistral_7b(TextGenerationRequest::Message(
@@ -84,14 +98,18 @@ impl FunctionCallAgent {
                 },
             ))
             .await?;
-        Ok(response.result.response)
+        Ok(response.result)
     }
 }
 
 impl Agent for FunctionCallAgent {
-    type Item = anyhow::Result<Vec<ToolCall>>;
+    type Item = TextGenerationJsonResult;
 
-    async fn prompt(self, prompt: &str, context: Option<&str>) -> Self::Item {
+    async fn prompt(
+        self,
+        prompt: &str,
+        context: Option<&str>,
+    ) -> anyhow::Result<(Self::Item, CreateGenerationBody)> {
         let contexts: Vec<_> = self
             .history
             .clone()
@@ -108,7 +126,7 @@ impl Agent for FunctionCallAgent {
             .enumerate()
         {
             message.content = format!(
-                "#Context\n{}\n# Prompt\n{}",
+                "# Context\n{}\n# Prompt\n{}",
                 contexts.get(i).unwrap_or(&"".to_string()),
                 message.content,
             );
@@ -143,110 +161,61 @@ impl Agent for FunctionCallAgent {
             ),
         });
 
-        let messages = messages
+        let messages: Vec<_> = messages
             .into_iter()
             .filter(|m| !m.content.is_empty())
             .collect();
 
-        let response = self.call(messages).await?;
+        let start_time = chrono::Utc::now().to_rfc3339();
+
+        let response = self.call(messages.clone()).await?;
+
+        let generation = CreateGenerationBody {
+            id: Some(Some(Uuid::new_v4().to_string())),
+            name: Some(Some(self.name.clone())),
+            model: Some(Some(HERMES_2_PRO_MISTRAL_7B.to_string())),
+            start_time: Some(Some(start_time)),
+            end_time: Some(Some(chrono::Utc::now().to_rfc3339())),
+            input: Some(Some(serde_json::Value::Array(
+                messages
+                    .iter()
+                    .map(|t| {
+                        serde_json::json!({
+                            "role": t.role,
+                            "content": t.content,
+                        })
+                    })
+                    .collect(),
+            ))),
+            output: Some(Some(serde_json::Value::String(
+                serde_json::to_string_pretty(&response).unwrap(),
+            ))),
+            ..Default::default()
+        };
 
         info!(
-            "FunctionCallAgent response: {}, prompt:{}",
+            "FunctionCallAgent response: {:?}, prompt:{}",
             response, prompt
         );
 
-        if !response.contains("<tool_call>") {
-            return Ok(vec![]);
-        }
-
-        let re = regex::Regex::new(r"<tool_call>|</tool_call>").unwrap();
-        let mut rpcs = vec![];
-        for part in re.split(&response) {
-            let part = part.trim().replace('\n', "");
-            if part.is_empty() {
-                continue;
-            }
-            let part = part.replace('\'', "\"");
-            let mut part = part.replace('\\', "");
-            if part.find("name") < part.find("arguments") {
-                let start = regex::Regex::new(r".*\{.*?name").unwrap();
-                let end = regex::Regex::new(r"arguments.*}.*}").unwrap();
-                if !start.is_match(&part) {
-                    part.insert(0, '{');
-                }
-                if !end.is_match(&part) {
-                    part.push('}');
-                }
-            } else {
-                let start = regex::Regex::new(r".*\{.*?arguments").unwrap();
-                let end = regex::Regex::new(r"name.*}").unwrap();
-                if !start.is_match(&part) {
-                    part.insert(0, '{');
-                }
-                if !end.is_match(&part) {
-                    part.push('}');
-                }
-            }
-            let extra = regex::Regex::new(r"^.*?\{").unwrap();
-            let part: std::borrow::Cow<str> = extra.replace(&part, "{");
-            let extra = regex::Regex::new(r"\}[^\}]*?$").unwrap();
-            let part: std::borrow::Cow<str> = extra.replace(&part, "}");
-            let result = serde_json::from_str(&part);
-            let Ok(result) = result else {
-                println!(
-                    "Error parsing tool call: {:?}, part: {}",
-                    result, part
-                );
-                continue;
-            };
-            rpcs.push(result);
-        }
-
-        Ok(rpcs)
+        Ok((response, generation))
     }
 
     async fn prompt_with_stream(
         self,
         prompt: &str,
         context: Option<&str>,
-    ) -> std::pin::Pin<Box<dyn futures_util::Stream<Item = Self::Item> + Send>>
-    {
+    ) -> (
+        Vec<Message>,
+        std::pin::Pin<
+            Box<
+                dyn futures_util::Stream<Item = anyhow::Result<Self::Item>>
+                    + Send,
+            >,
+        >,
+    ) {
         let _ = context;
         let _ = prompt;
-        todo!();
+        todo!()
     }
-}
-
-#[derive(Clone, Debug, Deserialize, Default)]
-pub struct ToolCall {
-    pub name: String,
-    pub arguments: Option<HashMap<String, Option<String>>>,
-}
-
-#[derive(Serialize, Default)]
-pub struct Tool {
-    pub r#type: String,
-    pub function: Function,
-}
-
-#[derive(Serialize, Default)]
-pub struct Function {
-    pub name: String,
-    pub description: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parameters: Option<Parameters>,
-}
-
-#[derive(Serialize, Default)]
-pub struct Parameters {
-    pub r#type: String,
-    pub properties: HashMap<String, PropertyType>,
-    pub required: Option<Vec<String>>,
-}
-
-#[derive(Serialize)]
-#[serde(tag = "type")]
-pub enum PropertyType {
-    String,
-    Number,
 }
