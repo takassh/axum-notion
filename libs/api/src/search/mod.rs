@@ -566,6 +566,14 @@ async fn function_call(
                 ),
             },
         },
+        Tool {
+            r#type: "function".to_string(),
+            function: Function {
+                name: "get_information_about_this_site".to_string(),
+                description: "Get information about this site".to_string(),
+                parameters: None,
+            },
+        },
     ],
     params.history.clone(),
     Some(
@@ -691,9 +699,6 @@ async fn function_call(
                 observations.push(format!("## Article summary search results with {}\n### title\n{}\n### summary\n{}",params.get("query").unwrap(),title,summary));
                 page_ids.push(notion_page_id);
             }
-            "get_current_datetime" => {
-                observations.push(format!("## Current datetime\n{}", value));
-            }
             "get_article_detail" => {
                 let block = serde_json::from_value::<
                     Option<entity::block::Block>,
@@ -768,6 +773,56 @@ async fn function_call(
                     params.get("limit").unwrap(),
                     titles_with_created_at.join("\n")
                 ));
+            }
+            "get_current_datetime" => {
+                observations.push(format!("## Current datetime\n{}", value));
+            }
+            "get_information_about_this_site" => {
+                let block = serde_json::from_value::<
+                    Option<entity::block::Block>,
+                >(value.clone());
+                let Ok(block) = block else {
+                    error!(
+                        task = "parse block entity",
+                        value = value.to_string(),
+                        error = block.unwrap_err().to_string(),
+                    );
+                    continue;
+                };
+                let Some(entity::block::Block {
+                    notion_page_id,
+                    contents,
+                    ..
+                }) = block
+                else {
+                    observations.push(
+                        "## Information about this site\nNot found".to_string(),
+                    );
+                    continue;
+                };
+
+                let blocks = serde_json::from_str::<Vec<Block>>(&contents);
+                let Ok(blocks) = blocks else {
+                    error!(
+                        task = "parse blocks",
+                        contents = contents,
+                        error = blocks.unwrap_err().to_string(),
+                    );
+                    continue;
+                };
+
+                let plain_text = blocks
+                    .into_iter()
+                    .flat_map(|b| b.block_type.plain_text())
+                    .flatten()
+                    .collect::<Vec<_>>()
+                    .join("");
+
+                observations.push(format!(
+                    "## Information about this site\n{}",
+                    plain_text
+                ));
+                page_ids.push(notion_page_id);
             }
             _ => {}
         }

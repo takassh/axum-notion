@@ -58,7 +58,7 @@ pub fn serve(
 
     // Build the Router with the handlers and common resources
     let rpc_router = router_builder!(
-        handlers: [get_article_summary,get_article_detail,get_current_datetime,get_article_title_list],         // will be turned into routes
+        handlers: [get_article_summary,get_article_detail,get_current_datetime,get_article_title_list,get_information_about_this_site],         // will be turned into routes
         resources: [RpcState {config:Config{qdrant:Qdrant {
             collection: config["qdrant"]["collection"]
                 .as_str()
@@ -136,6 +136,18 @@ pub async fn get_article_detail(
         }
     }
 
+    Ok(block)
+}
+
+pub async fn get_information_about_this_site(
+    state: RpcState,
+) -> Result<Option<BlockEntity>, RpcError> {
+    // Hardcoded page id for "about this site"
+    let block = state
+        .repo
+        .block
+        .find_by_notion_page_id("74c5e456-0feb-4049-a217-ba6ad67869ca")
+        .await?;
     Ok(block)
 }
 
