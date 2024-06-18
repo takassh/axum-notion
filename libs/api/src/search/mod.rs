@@ -428,15 +428,17 @@ async fn vector_search(
             documents.push(document);
         }
 
-        vector_result.push(format!(
-            "## Vector title and summary search result with {}\n{}",
-            keyword,
-            documents
-                .iter()
-                .map(|c| format!("1. {}", c))
-                .collect::<Vec<_>>()
-                .join("\n")
-        ));
+        if !documents.is_empty() {
+            vector_result.push(format!(
+                "## Vector title and summary search result with {}\n{}",
+                keyword,
+                documents
+                    .iter()
+                    .map(|c| format!("1. {}", c))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ));
+        }
 
         // chunk
         let mut documents = vec![];
@@ -450,15 +452,17 @@ async fn vector_search(
             documents.push(document);
         }
 
-        vector_result.push(format!(
-            "## Vector chunk search result with {}\n{}",
-            keyword,
-            documents
-                .iter()
-                .map(|c| format!("1. {}", c))
-                .collect::<Vec<_>>()
-                .join("\n")
-        ));
+        if !documents.is_empty() {
+            vector_result.push(format!(
+                "## Vector chunk search result with {}\n{}",
+                keyword,
+                documents
+                    .iter()
+                    .map(|c| format!("1. {}", c))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ));
+        }
     }
 
     span.end_time = Some(Some(chrono::Utc::now().to_rfc3339()));
