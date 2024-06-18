@@ -10,8 +10,8 @@ use axum::{
 use cloudflare::models::{
     text_embeddings::{StringOrArray, TextEmbeddings, TextEmbeddingsRequest},
     text_generation::{
-        Function, Message, Parameters, PropertyType, TextGenerationJsonResult,
-        Tool, ToolCall, LLAMA_3_8B_INSTRUCT,
+        Function, Message, ModelParameters, Parameters, PropertyType,
+        TextGenerationJsonResult, Tool, ToolCall, LLAMA_3_8B_INSTRUCT,
     },
 };
 use entity::prelude::*;
@@ -363,11 +363,17 @@ async fn generate_keyword(
         "keyword generator".to_string(),
         system_prompt,
         params.history.clone(),
-        Some(20),
+        Some(ModelParameters {
+            max_tokens: Some(20),
+            ..Default::default()
+        }),
     );
 
+    let user_prompt_template =
+        get_template(&state.langfuse, "keyword-generator-user").await?;
+
     let (keyword_result, log) = keyword_generator
-        .prompt(&format!("{}\nkeywords:", &params.prompt), None)
+        .prompt(&user_prompt_template, &params.prompt, None)
         .await?;
 
     Ok((keyword_result[0].clone(), log))
@@ -436,6 +442,9 @@ async fn vector_search(
             })
             .collect(),
     )));
+    span.metadata = Some(Some(serde_json::json!({
+        "page_ids": all_page_ids,
+    })));
 
     Ok((vector_result, all_page_ids, span))
 }
@@ -524,14 +533,22 @@ async fn function_call(
         },
     ],
     params.history.clone(),
-    Some(0.),
-    Some(0.),
-    Some(1.),
-    ).await?;
+    Some(
+        ModelParameters {
+        temperature:Some(0),
+        top_p:Some(0),
+        top_k:Some(1),
+         ..Default::default() }
+        )).await?;
 
     let context = format!("## Possible search keywords\n{}", keywords);
 
-    let (tool_calls_response,log) = function_call_agent.prompt(&format!("{}\nYour answer starts with <tool_call> because you only answer function calling",&params.prompt),Some(&context)).await?;
+    let user_prompt_template =
+        get_template(&state.langfuse, "function-calls-user").await?;
+
+    let (tool_calls_response, log) = function_call_agent
+        .prompt(&user_prompt_template, &params.prompt, Some(&context))
+        .await?;
 
     let mut span = CreateSpanBody {
         id: Some(Some(Uuid::new_v4().to_string())),
@@ -756,8 +773,11 @@ async fn make_answer(
 
     let prompt = &params.prompt;
 
+    let user_prompt_template =
+        get_template(&state.langfuse, "answer-generator-user").await?;
+
     let (qa_message, mut question_answer) = question_answer_agent
-        .prompt_with_stream(prompt, Some(context))
+        .prompt_with_stream(&user_prompt_template, prompt, Some(context))
         .await;
 
     input_messages_tx

@@ -231,7 +231,11 @@ pub async fn generate_summarize(
             id: None,
             rich_text: vec![RichText::Text {
                 text: Text {
-                    content: response.result.response.clone().unwrap_or_default(),
+                    content: response
+                        .result
+                        .response
+                        .clone()
+                        .unwrap_or_default(),
                     link: None,
                 },
                 annotations: None,

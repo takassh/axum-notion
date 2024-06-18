@@ -14,6 +14,7 @@ pub trait Agent {
     type Item;
     fn prompt_with_stream(
         self,
+        user_prompt_template: &str,
         prompt: &str,
         context: Option<&str>,
     ) -> impl std::future::Future<
@@ -25,6 +26,7 @@ pub trait Agent {
 
     fn prompt(
         self,
+        user_prompt_template: &str,
         prompt: &str,
         context: Option<&str>,
     ) -> impl std::future::Future<

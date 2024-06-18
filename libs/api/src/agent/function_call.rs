@@ -1,6 +1,7 @@
 use cloudflare::models::text_generation::{
-    Message, MessageRequest, TextGeneration, TextGenerationJsonResult,
-    TextGenerationRequest, Tool, HERMES_2_PRO_MISTRAL_7B,
+    Message, MessageRequest, ModelParameters, TextGeneration,
+    TextGenerationJsonResult, TextGenerationRequest, Tool,
+    HERMES_2_PRO_MISTRAL_7B,
 };
 use langfuse::{apis::configuration, models::CreateGenerationBody};
 use regex::Regex;
@@ -14,9 +15,7 @@ pub struct FunctionCallAgent {
     name: String,
     system_prompt: String,
     history: Vec<Message>,
-    pub temperature: Option<f32>, // from 0 to 5
-    pub top_p: Option<f32>,       // from 0 to 2
-    pub top_k: Option<f32>,       // from 1 to 50
+    model_parameters: Option<ModelParameters>,
 }
 
 impl FunctionCallAgent {
@@ -27,9 +26,7 @@ impl FunctionCallAgent {
         name: String,
         available_tools: Vec<Tool>,
         history: Vec<Message>,
-        temperature: Option<f32>,
-        top_p: Option<f32>,
-        top_k: Option<f32>,
+        model_parameters: Option<ModelParameters>,
     ) -> anyhow::Result<Self> {
         let mut system_prompt =
             get_template(configuration, "function-calls-system").await?;
@@ -76,25 +73,22 @@ impl FunctionCallAgent {
             name,
             system_prompt,
             history,
-            temperature,
-            top_p,
-            top_k,
+            model_parameters,
         })
     }
 
     async fn call(
         &self,
         messages: Vec<Message>,
+        model_parameters: Option<ModelParameters>,
     ) -> anyhow::Result<TextGenerationJsonResult> {
         let response = self
             .client
             .hermes_2_pro_mistral_7b(TextGenerationRequest::Message(
                 MessageRequest {
                     messages,
-                    temperature: self.temperature,
-                    top_p: self.top_p,
-                    top_k: self.top_k,
-                    ..Default::default()
+                    model_parameters,
+                    stream: Some(false),
                 },
             ))
             .await?;
@@ -107,6 +101,7 @@ impl Agent for FunctionCallAgent {
 
     async fn prompt(
         self,
+        user_prompt_template: &str,
         prompt: &str,
         context: Option<&str>,
     ) -> anyhow::Result<(Self::Item, CreateGenerationBody)> {
@@ -125,11 +120,12 @@ impl Agent for FunctionCallAgent {
             .filter(|m| m.role == "user")
             .enumerate()
         {
-            message.content = format!(
-                "# Context\n{}\n# Prompt\n{}",
-                contexts.get(i).unwrap_or(&"".to_string()),
-                message.content,
-            );
+            message.content = user_prompt_template
+                .replace("{{prompt}}", &message.content)
+                .replace(
+                    "{{context}}",
+                    contexts.get(i).unwrap_or(&"".to_string()),
+                );
             user_messages.push(message);
         }
 
@@ -154,11 +150,9 @@ impl Agent for FunctionCallAgent {
         );
         messages.push(Message {
             role: "user".to_string(),
-            content: format!(
-                "# Context\n{}\n# Prompt\n{}",
-                context.unwrap_or_default(),
-                prompt
-            ),
+            content: user_prompt_template
+                .replace("{{prompt}}", prompt)
+                .replace("{{context}}", context.unwrap_or_default()),
         });
 
         let messages: Vec<_> = messages
@@ -168,12 +162,68 @@ impl Agent for FunctionCallAgent {
 
         let start_time = chrono::Utc::now().to_rfc3339();
 
-        let response = self.call(messages.clone()).await?;
+        let mut response = self
+            .call(messages.clone(), self.model_parameters.clone())
+            .await?;
+
+        if response.tool_calls.is_none() {
+            let re = regex::Regex::new(r"<tool_call>|</tool_call>").unwrap();
+            let mut rpcs = vec![];
+            for part in re.split(&response.response.clone().unwrap_or_default())
+            {
+                let part = part.trim().replace('\n', "");
+                if part.is_empty() {
+                    continue;
+                }
+                let part = part.replace('\'', "\"");
+                let mut part = part.replace('\\', "");
+                if part.find("name") < part.find("arguments") {
+                    let start = regex::Regex::new(r".*\{.*?name").unwrap();
+                    let end = regex::Regex::new(r"arguments.*}.*}").unwrap();
+                    if !start.is_match(&part) {
+                        part.insert(0, '{');
+                    }
+                    if !end.is_match(&part) {
+                        part.push('}');
+                    }
+                } else {
+                    let start = regex::Regex::new(r".*\{.*?arguments").unwrap();
+                    let end = regex::Regex::new(r"name.*}").unwrap();
+                    if !start.is_match(&part) {
+                        part.insert(0, '{');
+                    }
+                    if !end.is_match(&part) {
+                        part.push('}');
+                    }
+                }
+                let extra = regex::Regex::new(r"^.*?\{").unwrap();
+                let part: std::borrow::Cow<str> = extra.replace(&part, "{");
+                let extra = regex::Regex::new(r"\}[^\}]*?$").unwrap();
+                let part: std::borrow::Cow<str> = extra.replace(&part, "}");
+                let result = serde_json::from_str(&part);
+                let Ok(result) = result else {
+                    println!(
+                        "Error parsing tool call: {:?}, part: {}",
+                        result, part
+                    );
+                    continue;
+                };
+                rpcs.push(result);
+            }
+
+            response.tool_calls = Some(rpcs);
+        }
 
         let generation = CreateGenerationBody {
             id: Some(Some(Uuid::new_v4().to_string())),
             name: Some(Some(self.name.clone())),
             model: Some(Some(HERMES_2_PRO_MISTRAL_7B.to_string())),
+            model_parameters: Some(Some(
+                serde_json::from_value(
+                    serde_json::to_value(self.model_parameters).unwrap(),
+                )
+                .unwrap(),
+            )),
             start_time: Some(Some(start_time)),
             end_time: Some(Some(chrono::Utc::now().to_rfc3339())),
             input: Some(Some(serde_json::Value::Array(
@@ -203,6 +253,7 @@ impl Agent for FunctionCallAgent {
 
     async fn prompt_with_stream(
         self,
+        user_prompt_template: &str,
         prompt: &str,
         context: Option<&str>,
     ) -> (
@@ -214,6 +265,7 @@ impl Agent for FunctionCallAgent {
             >,
         >,
     ) {
+        let _ = user_prompt_template;
         let _ = context;
         let _ = prompt;
         todo!()

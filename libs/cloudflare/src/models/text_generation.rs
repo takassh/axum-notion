@@ -52,20 +52,8 @@ pub struct MessageRequest {
     pub messages: Vec<Message>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_tokens: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub temperature: Option<f32>, // from 0 to 5
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub top_p: Option<f32>, // from 0 to 2
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub top_k: Option<f32>, // from 1 to 50
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub repetition_penalty: Option<f32>, // from 0 to 2
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub frequency_penalty: Option<f32>, // from 0 to 2
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub presence_penalty: Option<f32>, // from 0 to 2
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub model_parameters: Option<ModelParameters>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -110,6 +98,24 @@ pub struct Parameters {
     pub r#type: String,
     pub properties: HashMap<String, PropertyType>,
     pub required: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Default, Clone)]
+pub struct ModelParameters {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<i32>, // from 0 to 5
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<i32>, // from 0 to 2
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<i32>, // from 1 to 50
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repetition_penalty: Option<i32>, // from 0 to 2
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequency_penalty: Option<i32>, // from 0 to 2
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub presence_penalty: Option<i32>, // from 0 to 2
 }
 
 #[derive(Serialize)]

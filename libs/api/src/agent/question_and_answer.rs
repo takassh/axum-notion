@@ -1,8 +1,8 @@
 use std::pin::Pin;
 
 use cloudflare::models::text_generation::{
-    Message, MessageRequest, TextGeneration, TextGenerationJsonResult,
-    TextGenerationRequest, LLAMA_3_8B_INSTRUCT,
+    Message, MessageRequest, ModelParameters, TextGeneration,
+    TextGenerationJsonResult, TextGenerationRequest, LLAMA_3_8B_INSTRUCT,
 };
 use futures_util::Stream;
 use langfuse::models::CreateGenerationBody;
@@ -16,7 +16,7 @@ pub struct QuestionAnswerAgent {
     name: String,
     system_prompt: String,
     history: Vec<Message>,
-    max_tokens: Option<i32>,
+    model_parameters: Option<ModelParameters>,
 }
 
 impl QuestionAnswerAgent {
@@ -25,14 +25,14 @@ impl QuestionAnswerAgent {
         name: String,
         system_prompt: String,
         history: Vec<Message>,
-        max_tokens: Option<i32>,
+        model_parameters: Option<ModelParameters>,
     ) -> Self {
         Self {
             client,
             name,
             system_prompt,
             history,
-            max_tokens,
+            model_parameters,
         }
     }
 }
@@ -42,6 +42,7 @@ impl Agent for QuestionAnswerAgent {
 
     async fn prompt_with_stream(
         self,
+        user_prompt_template: &str,
         prompt: &str,
         context: Option<&str>,
     ) -> (
@@ -63,11 +64,12 @@ impl Agent for QuestionAnswerAgent {
             .filter(|m| m.role == "user")
             .enumerate()
         {
-            message.content = format!(
-                "# Prompt\n{}\n# Blog resources\n{}",
-                message.content,
-                contexts.get(i).unwrap_or(&"".to_string()),
-            );
+            message.content = user_prompt_template
+                .replace("{{prompt}}", &message.content)
+                .replace(
+                    "{{context}}",
+                    contexts.get(i).unwrap_or(&"".to_string()),
+                );
             user_messages.push(message);
         }
 
@@ -93,19 +95,16 @@ impl Agent for QuestionAnswerAgent {
 
         messages.push(Message {
             role: "user".to_string(),
-            content: format!(
-                "# Prompt\n{}\n# Blog resources\n{}",
-                prompt,
-                context.unwrap_or_default(),
-            )
-            .to_string(),
+            content: user_prompt_template
+                .replace("{{prompt}}", prompt)
+                .replace("{{context}}", context.unwrap_or_default()),
         });
 
         let stream = self.client.llama_3_8b_instruct_with_stream(
             TextGenerationRequest::Message(MessageRequest {
                 messages: messages.clone(),
                 stream: Some(true),
-                ..Default::default()
+                model_parameters: self.model_parameters.clone(),
             }),
         );
 
@@ -114,8 +113,9 @@ impl Agent for QuestionAnswerAgent {
 
     async fn prompt(
         self,
+        user_prompt_template: &str,
         prompt: &str,
-        _context: Option<&str>,
+        context: Option<&str>,
     ) -> anyhow::Result<(Self::Item, CreateGenerationBody)> {
         let contexts: Vec<_> = self
             .history
@@ -132,11 +132,12 @@ impl Agent for QuestionAnswerAgent {
             .filter(|m| m.role == "user")
             .enumerate()
         {
-            message.content = format!(
-                "# Prompt\n{}\n# Context\n{}",
-                message.content,
-                contexts.get(i).unwrap_or(&"".to_string()),
-            );
+            message.content = user_prompt_template
+                .replace("{{prompt}}", &message.content)
+                .replace(
+                    "{{context}}",
+                    contexts.get(i).unwrap_or(&"".to_string()),
+                );
             user_messages.push(message);
         }
 
@@ -161,7 +162,9 @@ impl Agent for QuestionAnswerAgent {
         );
         messages.push(Message {
             role: "user".to_string(),
-            content: prompt.to_string(),
+            content: user_prompt_template
+                .replace("{{prompt}}", prompt)
+                .replace("{{context}}", context.unwrap_or_default()),
         });
 
         let messages: Vec<_> = messages
@@ -176,7 +179,7 @@ impl Agent for QuestionAnswerAgent {
             .llama_3_8b_instruct(TextGenerationRequest::Message(
                 MessageRequest {
                     messages: messages.clone(),
-                    max_tokens: self.max_tokens,
+                    model_parameters: self.model_parameters.clone(),
                     ..Default::default()
                 },
             ))
@@ -186,6 +189,12 @@ impl Agent for QuestionAnswerAgent {
             id: Some(Some(Uuid::new_v4().to_string())),
             name: Some(Some(self.name.clone())),
             model: Some(Some(LLAMA_3_8B_INSTRUCT.to_string())),
+            model_parameters: Some(Some(
+                serde_json::from_value(
+                    serde_json::to_value(self.model_parameters).unwrap(),
+                )
+                .unwrap(),
+            )),
             start_time: Some(Some(start_time)),
             end_time: Some(Some(chrono::Utc::now().to_rfc3339())),
             input: Some(Some(serde_json::Value::Array(
