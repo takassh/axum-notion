@@ -15,7 +15,7 @@ use cloudflare::models::{
     },
 };
 use entity::prelude::*;
-use futures_util::Stream;
+use futures_util::{join, Stream};
 use langfuse::{
     apis::ingestion_api::ingestion_batch,
     models::{
@@ -41,7 +41,7 @@ use uuid::Uuid;
 use serde_json::json;
 use std::{collections::HashMap, convert::Infallible, sync::Arc};
 use tokio::{
-    join, select,
+    select,
     sync::{mpsc, oneshot},
 };
 use tokio_stream::StreamExt as _;
@@ -277,85 +277,73 @@ async fn retriever(
         return Err(anyhow::anyhow!("No vectors found"));
     };
 
-    let page_search_result = state
-        .qdrant
-        .search_points(&SearchPoints {
-            collection_name: state.config.qdrant.collection.clone(),
-            vector: vector.clone(),
-            limit: 5,
-            with_payload: Some(WithPayloadSelector {
-                selector_options: Some(SelectorOptions::Include(
-                    PayloadIncludeSelector {
-                        fields: vec![
-                            "document".to_string(),
-                            "page_id".to_string(),
-                        ],
-                    },
-                )),
-            }),
-            filter: Some(Filter {
-                must: vec![Condition {
-                    condition_one_of: Some(ConditionOneOf::Field(
-                        FieldCondition {
-                            key: "type".to_string(),
-                            r#match: Some(Match {
-                                match_value: Some(MatchValue::Keyword(
-                                    serde_json::to_string(
-                                        &DocumentTypeEntity::Page,
-                                    )
-                                    .unwrap(),
-                                )),
-                            }),
-                            ..Default::default()
-                        },
-                    )),
-                }],
-                ..Default::default()
-            }),
-            score_threshold: Some(0.6),
+    let page_param = SearchPoints {
+        collection_name: state.config.qdrant.collection.clone(),
+        vector: vector.clone(),
+        limit: 5,
+        with_payload: Some(WithPayloadSelector {
+            selector_options: Some(SelectorOptions::Include(
+                PayloadIncludeSelector {
+                    fields: vec!["document".to_string(), "page_id".to_string()],
+                },
+            )),
+        }),
+        filter: Some(Filter {
+            must: vec![Condition {
+                condition_one_of: Some(ConditionOneOf::Field(FieldCondition {
+                    key: "type".to_string(),
+                    r#match: Some(Match {
+                        match_value: Some(MatchValue::Keyword(
+                            serde_json::to_string(&DocumentTypeEntity::Page)
+                                .unwrap(),
+                        )),
+                    }),
+                    ..Default::default()
+                })),
+            }],
             ..Default::default()
-        })
-        .await?;
+        }),
+        score_threshold: Some(0.6),
+        ..Default::default()
+    };
 
-    let block_search_result = state
-        .qdrant
-        .search_points(&SearchPoints {
-            collection_name: state.config.qdrant.collection.clone(),
-            vector: vector.clone(),
-            limit: 5,
-            with_payload: Some(WithPayloadSelector {
-                selector_options: Some(SelectorOptions::Include(
-                    PayloadIncludeSelector {
-                        fields: vec![
-                            "document".to_string(),
-                            "page_id".to_string(),
-                        ],
-                    },
-                )),
-            }),
-            filter: Some(Filter {
-                must: vec![Condition {
-                    condition_one_of: Some(ConditionOneOf::Field(
-                        FieldCondition {
-                            key: "type".to_string(),
-                            r#match: Some(Match {
-                                match_value: Some(MatchValue::Keyword(
-                                    serde_json::to_string(
-                                        &DocumentTypeEntity::Block,
-                                    )
-                                    .unwrap(),
-                                )),
-                            }),
-                            ..Default::default()
-                        },
-                    )),
-                }],
-                ..Default::default()
-            }),
-            score_threshold: Some(0.7),
+    let block_param = SearchPoints {
+        collection_name: state.config.qdrant.collection.clone(),
+        vector: vector.clone(),
+        limit: 5,
+        with_payload: Some(WithPayloadSelector {
+            selector_options: Some(SelectorOptions::Include(
+                PayloadIncludeSelector {
+                    fields: vec!["document".to_string(), "page_id".to_string()],
+                },
+            )),
+        }),
+        filter: Some(Filter {
+            must: vec![Condition {
+                condition_one_of: Some(ConditionOneOf::Field(FieldCondition {
+                    key: "type".to_string(),
+                    r#match: Some(Match {
+                        match_value: Some(MatchValue::Keyword(
+                            serde_json::to_string(&DocumentTypeEntity::Block)
+                                .unwrap(),
+                        )),
+                    }),
+                    ..Default::default()
+                })),
+            }],
             ..Default::default()
-        })
-        .await?;
+        }),
+        score_threshold: Some(0.7),
+        ..Default::default()
+    };
+
+    let (page_search_result, block_search_result) = join!(
+        state.qdrant.search_points(&page_param),
+        state.qdrant.search_points(&block_param),
+    );
+
+    let page_search_result = page_search_result?;
+    let block_search_result = block_search_result?;
 
     Ok((page_search_result.result, block_search_result.result))
 }
