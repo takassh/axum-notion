@@ -119,7 +119,7 @@ pub struct ModelParameters {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub enum PropertyType {
     String,
     Number,

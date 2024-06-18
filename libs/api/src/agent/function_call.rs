@@ -175,8 +175,15 @@ impl Agent for FunctionCallAgent {
                 if part.is_empty() {
                     continue;
                 }
+                // match apostrophy
+                let quote =
+                    regex::Regex::new(r"(?P<left>[a-z])'(?P<right>[a-z])")
+                        .unwrap();
+                let part =
+                    quote.replace_all(&part, "${left}<apostrophy>${right}");
                 let part = part.replace('\'', "\"");
-                let mut part = part.replace('\\', "");
+                let part = part.replace('\\', "");
+                let mut part = part.replace("<apostrophy>", "'");
                 if part.find("name") < part.find("arguments") {
                     let start = regex::Regex::new(r".*\{.*?name").unwrap();
                     let end = regex::Regex::new(r"arguments.*}.*}").unwrap();
