@@ -174,7 +174,9 @@ pub async fn search_text_with_sse(
 
                     yield event;
 
-                    let event =  Event::default().json_data(json!({"debug": {"context":&context}}));
+                    let trace_id = Uuid::new_v4().to_string();
+
+                    let event =  Event::default().json_data(json!({"debug": {"context":&context, "traceId":trace_id.clone()}}));
                     let Ok(event) = event else {
                        error!(
                            task = "event json_data debug",
@@ -193,7 +195,7 @@ pub async fn search_text_with_sse(
                         );
                         break;
                     };
-                    let log = log_langfuse(&claims,&params,&state,&session,keyword_log,vector_log,function_call_log,observation_log,qa_log).await;
+                    let log = log_langfuse(&claims,&params,&state,&session,trace_id,keyword_log,vector_log,function_call_log,observation_log,qa_log).await;
 
                     let Ok(_) = log else {
                         error!(
@@ -881,6 +883,7 @@ async fn log_langfuse(
     params: &SearchParam,
     state: &Arc<ApiState>,
     session_id: &str,
+    trace_id: String,
     mut keyword_log: CreateGenerationBody,
     mut vector_log: CreateSpanBody,
     mut tool_calls_log: CreateGenerationBody,
@@ -888,7 +891,6 @@ async fn log_langfuse(
     mut qa_log: CreateGenerationBody,
 ) -> anyhow::Result<()> {
     let env = state.env.clone();
-    let trace_id = Uuid::new_v4().to_string();
     keyword_log.trace_id = Some(Some(trace_id.clone()));
     vector_log.trace_id = Some(Some(trace_id.clone()));
     tool_calls_log.trace_id = Some(Some(trace_id.clone()));
