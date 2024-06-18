@@ -409,7 +409,7 @@ async fn generate_keyword(
         system_prompt,
         params.history.clone(),
         Some(ModelParameters {
-            max_tokens: Some(50),
+            max_tokens: Some(20),
             ..Default::default()
         }),
     );
