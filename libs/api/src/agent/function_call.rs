@@ -4,7 +4,6 @@ use cloudflare::models::text_generation::{
     HERMES_2_PRO_MISTRAL_7B,
 };
 use langfuse::{apis::configuration, models::CreateGenerationBody};
-use regex::Regex;
 use tracing::info;
 use uuid::Uuid;
 
@@ -30,39 +29,6 @@ impl FunctionCallAgent {
     ) -> anyhow::Result<Self> {
         let mut system_prompt =
             get_template(configuration, "function-calls-system").await?;
-
-        let re = Regex::new(r"\s+").unwrap();
-        system_prompt = system_prompt.replace(
-            "{{schema}}",
-            &re.replace_all(
-                "{
-                    'title': 'FunctionCall',
-                    'type': 'object',
-                    'properties': {
-                        'arguments': {
-                            'title': 'Arguments',
-                            'type': 'object'
-                        },
-                        'name': {
-                            'title': 'Name',
-                            'type': 'string'
-                        }
-                    },
-                    'required': ['arguments', 'name']
-                }",
-                "",
-            ),
-        );
-        system_prompt = system_prompt.replace(
-            "{{tool_call_response}}",
-            &re.replace_all(
-                "{
-                    'arguments': '<args-dict>',
-                    'name': 'function-name'
-                }",
-                "",
-            ),
-        );
         system_prompt = system_prompt.replace(
             "{{tools}}",
             &serde_json::to_string(&available_tools)?.replace('"', "'"),
