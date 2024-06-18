@@ -312,6 +312,7 @@ async fn retriever(
                 }],
                 ..Default::default()
             }),
+            score_threshold: Some(0.6),
             ..Default::default()
         })
         .await?;
@@ -351,6 +352,7 @@ async fn retriever(
                 }],
                 ..Default::default()
             }),
+            score_threshold: Some(0.7),
             ..Default::default()
         })
         .await?;
@@ -364,22 +366,6 @@ async fn retriever(
     let mut context: Vec<String> = vec![];
     let mut page_ids: Vec<String> = vec![];
     for result in search_result.iter() {
-        let r#type = result
-            .payload
-            .get("type")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string();
-        let threshold = match r#type.as_str() {
-            "page" => 0.6,
-            "block" => 0.7,
-            _ => 0.6,
-        };
-        if result.score < threshold {
-            continue;
-        }
-
         // Take context
         let Some(doc) = result.payload.get("document") else {
             continue;
