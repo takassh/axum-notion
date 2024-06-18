@@ -391,7 +391,7 @@ async fn vector_search(
 
     let mut span = CreateSpanBody {
         id: Some(Some(Uuid::new_v4().to_string())),
-        name: Some(Some("vector search".to_string())),
+        name: Some(Some("search vectors".to_string())),
         start_time: Some(Some(chrono::Utc::now().to_rfc3339())),
         end_time: Some(Some(chrono::Utc::now().to_rfc3339())),
         input: Some(Some(serde_json::Value::String(
@@ -564,7 +564,7 @@ async fn function_call(
 
     let mut span = CreateSpanBody {
         id: Some(Some(Uuid::new_v4().to_string())),
-        name: Some(Some("make observations".to_string())),
+        name: Some(Some("get observations".to_string())),
         start_time: Some(Some(chrono::Utc::now().to_rfc3339())),
         end_time: Some(Some(chrono::Utc::now().to_rfc3339())),
         ..Default::default()

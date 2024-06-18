@@ -151,7 +151,11 @@ pub async fn get_article_title_list(
     let offset = params.offset.parse::<u64>().context("parse error")?;
     let limit = params.limit.parse::<u64>().context("parse error")?;
 
-    Ok(state.repo.page.find(offset, limit, None, None).await?)
+    Ok(state
+        .repo
+        .page
+        .find(offset, limit, None, None, Some(true))
+        .await?)
 }
 
 pub async fn get_current_datetime() -> Result<DateTime<Utc>, RpcError> {

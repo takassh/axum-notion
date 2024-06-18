@@ -66,6 +66,7 @@ pub async fn get_pages(
             params.pagination.limit,
             params.category,
             Some(ParentType::Database),
+            None,
         )
         .await
         .into_response("502-001")?;

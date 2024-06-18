@@ -62,6 +62,7 @@ impl PageRepository {
         limit: u64,
         database_name: Option<String>,
         parent_type: Option<ParentType>,
+        has_title: Option<bool>,
     ) -> anyhow::Result<Vec<PageEntity>> {
         let database = NotionDatabase::find()
             .filter(notion_database::Column::Name.eq(database_name))
@@ -77,6 +78,10 @@ impl PageRepository {
         if let Some(parent_type) = parent_type {
             query = query
                 .filter(page::Column::ParentType.eq(String::from(parent_type)));
+        }
+
+        if has_title.is_some() {
+            query = query.filter(page::Column::Title.is_not_null());
         }
 
         let pages = query.limit(limit).offset(offset).all(&self.db).await?;
