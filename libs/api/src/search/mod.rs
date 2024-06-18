@@ -364,7 +364,19 @@ async fn retriever(
     let mut context: Vec<String> = vec![];
     let mut page_ids: Vec<String> = vec![];
     for result in search_result.iter() {
-        if result.score < 0.6 {
+        let r#type = result
+            .payload
+            .get("type")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string();
+        let threshold = match r#type.as_str() {
+            "page" => 0.6,
+            "block" => 0.7,
+            _ => 0.6,
+        };
+        if result.score < threshold {
             continue;
         }
 
@@ -411,7 +423,7 @@ async fn generate_keyword(
         system_prompt,
         params.history.clone(),
         Some(ModelParameters {
-            max_tokens: Some(20),
+            max_tokens: Some(50),
             ..Default::default()
         }),
     );
