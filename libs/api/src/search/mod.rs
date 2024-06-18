@@ -10,7 +10,7 @@ use axum::{
 use cloudflare::models::{
     text_embeddings::{StringOrArray, TextEmbeddings, TextEmbeddingsRequest},
     text_generation::{
-        Function, Message, ModelParameters, Parameters, PropertyType,
+        Function, ModelParameters, Parameters, PropertyType,
         TextGenerationJsonResult, Tool, ToolCall, LLAMA_3_8B_INSTRUCT,
     },
 };
@@ -19,7 +19,7 @@ use futures_util::Stream;
 use langfuse::{
     apis::ingestion_api::ingestion_batch,
     models::{
-        self, ingestion_event_one_of, ingestion_event_one_of_2,
+        ingestion_event_one_of, ingestion_event_one_of_2,
         ingestion_event_one_of_4, CreateGenerationBody, CreateSpanBody,
         IngestionBatchRequest, IngestionEvent, IngestionEventOneOf,
         IngestionEventOneOf2, IngestionEventOneOf4, TraceBody,
@@ -94,7 +94,7 @@ pub async fn search_text_with_sse(
 
         let (message_tx, mut message_rx) = mpsc::channel(100);
         let (page_tx, mut page_rx) = mpsc::channel(1);
-        let (input_message_tx, input_message_rx) = oneshot::channel();
+        let (qa_log_tx, qa_log_rx) = oneshot::channel();
         let context = format!(
             "{}\n{}",
             vector_search_result.join("\n"),
@@ -106,7 +106,7 @@ pub async fn search_text_with_sse(
         let _state = state.clone();
         tokio::spawn(async move {
            let (_,_) = join!(
-                make_answer(&_params,&_state,&_context,input_message_tx,message_tx),
+                make_answer(&_params,&_state,&_context,message_tx,qa_log_tx),
                 get_pages_by_ids(&_state,&all_page_ids,page_tx),
             );
         });
@@ -185,15 +185,15 @@ pub async fn search_text_with_sse(
                     yield event;
 
 
-                    let answer_inputs = input_message_rx.await;
-                    let Ok(answer_inputs) = answer_inputs else {
+                    let qa_log = qa_log_rx.await;
+                    let Ok(qa_log) = qa_log else {
                         error!(
-                            task = "answer inputs",
-                            error = answer_inputs.unwrap_err().to_string(),
+                            task = "qa log",
+                            error = qa_log.unwrap_err().to_string(),
                         );
                         break;
                     };
-                    let log = log_langfuse(&claims,&params,&state,&session,keyword_log,vector_log,function_call_log,observation_log,&answer_inputs,&all_messages).await;
+                    let log = log_langfuse(&claims,&params,&state,&session,keyword_log,vector_log,function_call_log,observation_log,qa_log).await;
 
                     let Ok(_) = log else {
                         error!(
@@ -758,8 +758,8 @@ async fn make_answer(
     params: &SearchParam,
     state: &Arc<ApiState>,
     context: &str,
-    input_messages_tx: oneshot::Sender<Vec<Message>>,
     message_tx: mpsc::Sender<String>,
+    log_tx: oneshot::Sender<CreateGenerationBody>,
 ) -> anyhow::Result<()> {
     let system_prompt =
         get_template(&state.langfuse, "answer-generator-system").await?;
@@ -780,9 +780,26 @@ async fn make_answer(
         .prompt_with_stream(&user_prompt_template, prompt, Some(context))
         .await;
 
-    input_messages_tx
-        .send(qa_message)
-        .expect("send input messages");
+    let mut log = CreateGenerationBody {
+        id: Some(Some(Uuid::new_v4().to_string())),
+        name: Some(Some("answer generator".to_string())),
+        model: Some(Some(LLAMA_3_8B_INSTRUCT.to_string())),
+        start_time: Some(Some(chrono::Utc::now().to_rfc3339())),
+        input: Some(Some(serde_json::Value::Array(
+            qa_message
+                .iter()
+                .map(|t| {
+                    serde_json::json!({
+                        "role": t.role,
+                        "content": t.content,
+                    })
+                })
+                .collect(),
+        ))),
+        ..Default::default()
+    };
+
+    let mut output = String::new();
 
     loop {
         let data = question_answer.next().await.transpose();
@@ -796,6 +813,7 @@ async fn make_answer(
         if let Some(data) = data {
             for d in data {
                 if let Some(response) = d.response {
+                    output.push_str(&response);
                     let result = message_tx.send(response).await;
                     if let Err(err) = result {
                         error!(
@@ -810,6 +828,10 @@ async fn make_answer(
             break;
         }
     }
+
+    log.output = Some(Some(serde_json::Value::String(output)));
+    log.end_time = Some(Some(chrono::Utc::now().to_rfc3339()));
+    let _ = log_tx.send(log);
 
     Ok(())
 }
@@ -863,8 +885,7 @@ async fn log_langfuse(
     mut vector_log: CreateSpanBody,
     mut tool_calls_log: CreateGenerationBody,
     mut observation_log: CreateSpanBody,
-    qa_input: &[Message],
-    qa_output: &str,
+    mut qa_log: CreateGenerationBody,
 ) -> anyhow::Result<()> {
     let env = state.env.clone();
     let trace_id = Uuid::new_v4().to_string();
@@ -872,6 +893,7 @@ async fn log_langfuse(
     vector_log.trace_id = Some(Some(trace_id.clone()));
     tool_calls_log.trace_id = Some(Some(trace_id.clone()));
     observation_log.trace_id = Some(Some(trace_id.clone()));
+    qa_log.trace_id = Some(Some(trace_id.clone()));
     let response = ingestion_batch(
         &state.langfuse,
         IngestionBatchRequest {
@@ -891,7 +913,12 @@ async fn log_langfuse(
                                 params.prompt.clone(),
                             ))),
                             output: Some(Some(serde_json::Value::String(
-                                qa_output.to_string(),
+                                qa_log
+                                    .clone()
+                                    .output
+                                    .unwrap()
+                                    .unwrap()
+                                    .to_string(),
                             ))),
                             session_id: Some(Some(session_id.to_string())),
                             tags: Some(Some(vec![env])),
@@ -942,32 +969,7 @@ async fn log_langfuse(
                 // answer result
                 IngestionEvent::IngestionEventOneOf4(Box::new(
                     IngestionEventOneOf4::new(
-                        CreateGenerationBody {
-                            id: Some(Some(Uuid::new_v4().to_string())),
-                            model: Some(Some(LLAMA_3_8B_INSTRUCT.to_string())),
-                            trace_id: Some(Some(trace_id.clone())),
-                            input: Some(Some(serde_json::Value::Array(
-                                qa_input
-                                    .iter()
-                                    .map(|t| {
-                                        serde_json::json!({
-                                            "role": t.role,
-                                            "content": t.content,
-                                        })
-                                    })
-                                    .collect(),
-                            ))),
-                            output: Some(Some(serde_json::Value::String(
-                                qa_output.to_string(),
-                            ))),
-                            level: Some(models::ObservationLevel::Default),
-                            usage: Some(Box::new(
-                                models::IngestionUsage::Usage(Box::new(
-                                    models::Usage::new(),
-                                )),
-                            )),
-                            ..Default::default()
-                        },
+                        qa_log,
                         Uuid::new_v4().to_string(),
                         chrono::Utc::now().to_rfc3339(),
                         ingestion_event_one_of_4::Type::GenerationCreate,
