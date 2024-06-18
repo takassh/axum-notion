@@ -460,7 +460,7 @@ async fn vector_search(
             let mut _result = vec![];
             let mut _page_ids = vec![];
             for (i, page_id) in page_ids.iter().enumerate() {
-                if _page_ids.contains(page_id) {
+                if all_page_ids.contains(page_id) {
                     continue;
                 }
                 _result.push(result[i].clone());
