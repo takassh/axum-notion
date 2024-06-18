@@ -277,7 +277,7 @@ async fn retriever(
         return Err(anyhow::anyhow!("No vectors found"));
     };
 
-    let search_result = state
+    let page_search_result = state
         .qdrant
         .search_points(&SearchPoints {
             collection_name: state.config.qdrant.collection.clone(),
@@ -316,9 +316,54 @@ async fn retriever(
         })
         .await?;
 
+    let block_search_result = state
+        .qdrant
+        .search_points(&SearchPoints {
+            collection_name: state.config.qdrant.collection.clone(),
+            vector: vector.clone(),
+            limit: 5,
+            with_payload: Some(WithPayloadSelector {
+                selector_options: Some(SelectorOptions::Include(
+                    PayloadIncludeSelector {
+                        fields: vec![
+                            "document".to_string(),
+                            "page_id".to_string(),
+                        ],
+                    },
+                )),
+            }),
+            filter: Some(Filter {
+                must: vec![Condition {
+                    condition_one_of: Some(ConditionOneOf::Field(
+                        FieldCondition {
+                            key: "type".to_string(),
+                            r#match: Some(Match {
+                                match_value: Some(MatchValue::Keyword(
+                                    serde_json::to_string(
+                                        &DocumentTypeEntity::Block,
+                                    )
+                                    .unwrap(),
+                                )),
+                            }),
+                            ..Default::default()
+                        },
+                    )),
+                }],
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
+        .await?;
+
+    let search_result = page_search_result
+        .result
+        .into_iter()
+        .chain(block_search_result.result.into_iter())
+        .collect::<Vec<_>>();
+
     let mut context: Vec<String> = vec![];
     let mut page_ids: Vec<String> = vec![];
-    for result in search_result.result.iter() {
+    for result in search_result.iter() {
         if result.score < 0.6 {
             continue;
         }
