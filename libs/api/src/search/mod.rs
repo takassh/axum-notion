@@ -526,7 +526,7 @@ async fn function_call(
                         ("offset".to_string(), PropertyType::String),
                         ("limit".to_string(), PropertyType::String),
                     ]),
-                      required: None,
+                    required: Some(vec!["offset".to_string(),"limit".to_string()]),
                     }
                 ),
             },
