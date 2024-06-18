@@ -387,7 +387,7 @@ async fn vector_search(
 ) -> anyhow::Result<(Vec<String>, Vec<String>, CreateSpanBody)> {
     let mut vector_result = vec![];
     let mut all_page_ids = vec![];
-    let keywords = keywords.split(',').take(3);
+    let keywords = keywords.split(',');
 
     let mut span = CreateSpanBody {
         id: Some(Some(Uuid::new_v4().to_string())),
@@ -405,7 +405,7 @@ async fn vector_search(
             continue;
         }
         let result = retriever(state, keyword).await;
-        let Ok((result, mut page_ids)) = result else {
+        let Ok((result, page_ids)) = result else {
             error!(
                 task = "get context by retriever",
                 error = result.unwrap_err().to_string(),
@@ -414,16 +414,26 @@ async fn vector_search(
         };
 
         if !result.is_empty() {
+            let mut _result = vec![];
+            let mut _page_ids = vec![];
+            for (i, page_id) in page_ids.iter().enumerate() {
+                if _page_ids.contains(page_id) {
+                    continue;
+                }
+                _result.push(result[i].clone());
+                _page_ids.push(page_ids[i].clone());
+            }
+
             vector_result.push(format!(
                 "## Vector search result with {}\n{}",
                 keyword,
-                result
+                _result
                     .iter()
                     .map(|c| format!("1. {}", c))
                     .collect::<Vec<_>>()
                     .join("\n")
             ));
-            all_page_ids.append(&mut page_ids);
+            all_page_ids.append(&mut _page_ids);
         } else {
             vector_result.push(format!(
                 "## Vector search result with {}\nNot found",
