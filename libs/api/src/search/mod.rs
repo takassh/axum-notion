@@ -32,10 +32,10 @@ use notion_client::objects::{
 use qdrant_client::qdrant::{
     condition::ConditionOneOf, r#match::MatchValue,
     with_payload_selector::SelectorOptions, Condition, FieldCondition, Filter,
-    Match, PayloadIncludeSelector, SearchPoints, WithPayloadSelector,
+    Match, PayloadIncludeSelector, ScoredPoint, SearchPoints,
+    WithPayloadSelector,
 };
 use rpc_router::CallResponse;
-use tracing::info;
 use uuid::Uuid;
 
 use serde_json::json;
@@ -265,7 +265,7 @@ async fn save_prompt(
 async fn retriever(
     state: &Arc<ApiState>,
     prompt: &str,
-) -> anyhow::Result<(Vec<String>, Vec<String>)> {
+) -> anyhow::Result<(Vec<ScoredPoint>, Vec<ScoredPoint>)> {
     let embedding = state
         .cloudflare
         .bge_small_en_v1_5(TextEmbeddingsRequest {
@@ -357,43 +357,7 @@ async fn retriever(
         })
         .await?;
 
-    let search_result = page_search_result
-        .result
-        .into_iter()
-        .chain(block_search_result.result.into_iter())
-        .collect::<Vec<_>>();
-
-    let mut context: Vec<String> = vec![];
-    let mut page_ids: Vec<String> = vec![];
-    for result in search_result.iter() {
-        // Take context
-        let Some(doc) = result.payload.get("document") else {
-            continue;
-        };
-        let Some(doc) = doc.as_str() else {
-            continue;
-        };
-
-        context.push(doc.to_string());
-
-        // Take page id
-        let Some(page_id) = result.payload.get("page_id") else {
-            continue;
-        };
-        let Some(page_id) = page_id.as_str() else {
-            continue;
-        };
-        page_ids.push(page_id.to_string());
-    }
-
-    info!(
-        task = "retriever",
-        prompt = prompt,
-        page_ids = &page_ids.join(","),
-        context = context.join("\n"),
-    );
-
-    Ok((context, page_ids))
+    Ok((page_search_result.result, block_search_result.result))
 }
 
 async fn generate_keyword(
@@ -448,7 +412,7 @@ async fn vector_search(
             continue;
         }
         let result = retriever(state, keyword).await;
-        let Ok((result, page_ids)) = result else {
+        let Ok((page_points, block_points)) = result else {
             error!(
                 task = "get context by retriever",
                 error = result.unwrap_err().to_string(),
@@ -456,33 +420,57 @@ async fn vector_search(
             continue;
         };
 
-        if !result.is_empty() {
-            let mut _result = vec![];
-            let mut _page_ids = vec![];
-            for (i, page_id) in page_ids.iter().enumerate() {
-                if all_page_ids.contains(page_id) {
-                    continue;
-                }
-                _result.push(result[i].clone());
-                _page_ids.push(page_ids[i].clone());
-            }
-
-            vector_result.push(format!(
-                "## Vector search result with {}\n{}",
-                keyword,
-                _result
-                    .iter()
-                    .map(|c| format!("1. {}", c))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            ));
-            all_page_ids.append(&mut _page_ids);
-        } else {
+        if page_points.is_empty() && block_points.is_empty() {
             vector_result.push(format!(
                 "## Vector search result with {}\nNot found",
                 keyword
             ));
+            continue;
         }
+
+        // title and summary
+        let mut documents = vec![];
+        for point in page_points.iter() {
+            let page_id = point.payload.get("page_id").unwrap().to_string();
+            let document = point.payload.get("document").unwrap().to_string();
+            if all_page_ids.contains(&page_id) {
+                continue;
+            }
+            all_page_ids.push(page_id);
+            documents.push(document);
+        }
+
+        vector_result.push(format!(
+            "## Vector title and summary search result with {}\n{}",
+            keyword,
+            documents
+                .iter()
+                .map(|c| format!("1. {}", c))
+                .collect::<Vec<_>>()
+                .join("\n")
+        ));
+
+        // chunk
+        let mut documents = vec![];
+        for point in block_points.iter() {
+            let page_id = point.payload.get("page_id").unwrap().to_string();
+            let document = point.payload.get("document").unwrap().to_string();
+            if all_page_ids.contains(&page_id) {
+                continue;
+            }
+            all_page_ids.push(page_id);
+            documents.push(document);
+        }
+
+        vector_result.push(format!(
+            "## Vector chunk search result with {}\n{}",
+            keyword,
+            documents
+                .iter()
+                .map(|c| format!("1. {}", c))
+                .collect::<Vec<_>>()
+                .join("\n")
+        ));
     }
 
     span.end_time = Some(Some(chrono::Utc::now().to_rfc3339()));
